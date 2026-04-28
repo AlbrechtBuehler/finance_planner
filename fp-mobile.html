@@ -336,7 +336,7 @@ function hbCard(y,m,c,isCur){
 function renderSheet(){
   const cats=hbCats();
   return '<div class="sheet-overlay" id="sh-ov"><div class="sheet"><div class="sheet-handle"></div><div class="sheet-title">Neue Buchung</div>'+
-  '<input class="amount-input" id="s-amt" type="number" inputmode="decimal" placeholder="0.00">'+
+  '<input class="amount-input" id="s-amt" type="number" inputmode="decimal" placeholder="0.00" value="'+(addForm.amount||'')+'">'+
   '<div class="type-toggle"><button class="type-btn'+(addForm.type==='out'?' active':'')+'" id="t-out">Ausgabe</button><button class="type-btn'+(addForm.type==='in'?' active':'')+'" id="t-in">Einnahme</button></div>'+
   '<div class="cat-grid">'+(cats.map(c=>'<button class="cat-btn'+(addForm.cat===c.id?' active':'')+'" data-cat="'+c.id+'">'+c.label+'</button>').join(''))+'</div>'+
   '<input class="desc-input" id="s-desc" placeholder="Beschreibung (optional)">'+
