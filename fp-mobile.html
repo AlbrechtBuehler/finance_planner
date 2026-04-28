@@ -83,7 +83,7 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:-apple-
 .cat-btn.active{background:var(--accent);color:#000;border-color:var(--accent);font-weight:600}
 .desc-input{width:calc(100% - 40px);margin:20px 20px 0;background:var(--surface);border:1px solid var(--border-strong);color:var(--text);font-family:inherit;font-size:14px;padding:12px;outline:none;display:block}
 .desc-input::placeholder{color:var(--muted)}
-.modal-footer{padding:14px 20px calc(var(--safe-bot) + 14px);border-top:1px solid var(--border);display:flex;gap:10px;flex-shrink:0}
+.modal-footer{padding:20px 20px calc(var(--safe-bot) + 20px);display:flex;gap:10px}
 .modal-save{flex:1;background:var(--accent);color:#000;font-family:inherit;font-size:15px;font-weight:600;padding:14px;border:none;cursor:pointer}
 .modal-cancel{background:none;border:1px solid var(--border-strong);color:var(--muted);font-family:inherit;font-size:14px;padding:14px 20px;cursor:pointer}
 .toast{position:fixed;bottom:calc(var(--safe-bot) + 80px);left:50%;transform:translateX(-50%);background:var(--accent);color:#000;font-size:13px;font-weight:600;padding:10px 20px;z-index:200;animation:tin .1s ease,tout .3s ease 1.7s forwards;white-space:nowrap}
@@ -360,10 +360,10 @@ function openAddModal(){
       '<span class="cat-label">Kategorie</span>'+
       '<div class="cat-grid">'+cats.map(c=>'<button class="cat-btn" data-cat="'+c.id+'">'+c.label+'</button>').join('')+'</div>'+
       '<input class="desc-input" id="m-desc" placeholder="Beschreibung (optional)">'+
-    '</div>'+
     '<div class="modal-footer">'+
       '<button class="modal-cancel" id="m-can">Abbrechen</button>'+
       '<button class="modal-save" id="m-sav">Speichern</button>'+
+    '</div>'+
     '</div>';
   document.body.appendChild(el);
   setTimeout(()=>document.getElementById('m-amt')?.focus(),80);
