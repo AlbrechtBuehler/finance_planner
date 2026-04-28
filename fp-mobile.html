@@ -339,22 +339,33 @@ function openAddModal(){
   const cats=hbCats();
   const el=document.createElement('div');
   el.className='modal-overlay'; el.id='add-modal';
-  el.innerHTML='<div class="modal">'+
-    '<div class="modal-handle"></div>'+
-    '<div class="modal-header"><span class="modal-title">Neue Buchung</span><button class="modal-close" id="m-close">×</button></div>'+
-    '<div class="amount-wrap"><input class="amount-input" id="m-amt" type="number" inputmode="decimal" placeholder="0.00" autofocus></div>'+
-    '<div class="type-toggle"><button class="type-btn active" id="m-out">Ausgabe</button><button class="type-btn" id="m-in">Einnahme</button></div>'+
-    '<span class="cat-label">Kategorie</span>'+
-    '<div class="cat-grid">'+cats.map(c=>'<button class="cat-btn" data-cat="'+c.id+'">'+c.label+'</button>').join('')+'</div>'+
-    '<input class="desc-input" id="m-desc" placeholder="Beschreibung (optional)">'+
-    '<div class="modal-actions"><button class="modal-cancel" id="m-can">Abbrechen</button><button class="modal-save" id="m-sav">Speichern</button></div>'+
-  '</div>';
+  el.innerHTML=
+    '<div class="modal-header">'+
+      '<span class="modal-title">Neue Buchung</span>'+
+      '<button class="modal-close" id="m-close">&#xD7;</button>'+
+    '</div>'+
+    '<div class="modal-body">'+
+      '<div class="amount-wrap">'+
+        '<span class="amount-label">Betrag (CHF)</span>'+
+        '<input class="amount-input" id="m-amt" type="number" inputmode="decimal" placeholder="0.00">'+
+      '</div>'+
+      '<div class="type-toggle">'+
+        '<button class="type-btn active" id="m-out">Ausgabe</button>'+
+        '<button class="type-btn" id="m-in">Einnahme</button>'+
+      '</div>'+
+      '<span class="cat-label">Kategorie</span>'+
+      '<div class="cat-grid">'+cats.map(c=>'<button class="cat-btn" data-cat="'+c.id+'">'+c.label+'</button>').join('')+'</div>'+
+      '<input class="desc-input" id="m-desc" placeholder="Beschreibung (optional)">'+
+    '</div>'+
+    '<div class="modal-footer">'+
+      '<button class="modal-cancel" id="m-can">Abbrechen</button>'+
+      '<button class="modal-save" id="m-sav">Speichern</button>'+
+    '</div>';
   document.body.appendChild(el);
   setTimeout(()=>document.getElementById('m-amt')?.focus(),80);
   function closeModal(){ el.remove(); }
   document.getElementById('m-close').onclick=closeModal;
   document.getElementById('m-can').onclick=closeModal;
-  el.addEventListener('click',e=>{ if(e.target===el) closeModal(); });
   document.getElementById('m-out').addEventListener('click',()=>{
     addForm.type='out';
     document.getElementById('m-out').classList.add('active');
