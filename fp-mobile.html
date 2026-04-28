@@ -246,7 +246,7 @@ async function initMsal(){
   if(!cfg?.clientId) return false;
   try{
     msal=new window.msal.PublicClientApplication({
-      auth:{ clientId:cfg.clientId, authority:'https://login.microsoftonline.com/consumers', redirectUri:window.location.href.split('#')[0].split('?')[0] },
+      auth:{ clientId:cfg.clientId, authority:'https://login.microsoftonline.com/common', redirectUri:window.location.href.split('#')[0].split('?')[0] },
       cache:{ cacheLocation:'localStorage', storeAuthStateInCookie:true }
     });
     await msal.initialize();
