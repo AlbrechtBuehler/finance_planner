@@ -1,0 +1,805 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black">
+<meta name="apple-mobile-web-app-title" content="Finanzen">
+<link rel="manifest" href="data:application/json,{&quot;name&quot;:&quot;Finanzen&quot;,&quot;short_name&quot;:&quot;Finanzen&quot;,&quot;start_url&quot;:&quot;.&quot;,&quot;display&quot;:&quot;standalone&quot;,&quot;background_color&quot;:&quot;%23000000&quot;,&quot;theme_color&quot;:&quot;%23000000&quot;,&quot;icons&quot;:[{&quot;src&quot;:&quot;data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' fill='%23000'/><text y='.9em' font-size='90' x='5'>◈</text></svg>&quot;,&quot;sizes&quot;:&quot;any&quot;,&quot;type&quot;:&quot;image/svg+xml&quot;}]}">
+<title>Finanzen</title>
+<style>
+/* ── TOKENS ─────────────────────────────────── */
+:root {
+    --bg:       #000;
+    --bg2:      #0D0E0C;
+    --bg3:      #161714;
+    --text:     #FAFAF7;
+    --muted:    rgba(250,250,247,0.55);
+    --border:   rgba(250,250,247,0.15);
+    --border2:  rgba(250,250,247,0.3);
+    --accent:   #FAFAF7;
+    --green:    #FAFAF7;
+    --red:      #FAFAF7;
+    --nav-h:    56px;
+    --pad:      14px;
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { height: 100%; background: var(--bg); color: var(--text); font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; font-size: 14px; -webkit-font-smoothing: antialiased; }
+
+/* ── LAYOUT ──────────────────────────────────── */
+.app { display: flex; flex-direction: column; height: 100%; }
+
+.header {
+    height: 48px;
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 0 var(--pad);
+    border-bottom: 1px solid var(--border);
+    background: var(--bg);
+    flex-shrink: 0;
+}
+.header-title { font-size: 15px; font-weight: 700; }
+.header-right { display: flex; align-items: center; gap: 10px; }
+.year-btn {
+    font-size: 13px; font-weight: 700;
+    background: transparent; border: 1px solid var(--border2);
+    color: var(--text); padding: 4px 10px; cursor: pointer;
+    font-family: inherit;
+    position: relative;
+}
+.year-menu {
+    display: none; position: absolute; top: calc(100% + 4px); right: 0;
+    background: var(--bg2); border: 1px solid var(--border2);
+    min-width: 80px; z-index: 100;
+}
+.year-menu.open { display: block; }
+.year-menu-item {
+    padding: 11px 16px; font-size: 13px; font-weight: 500;
+    cursor: pointer; text-align: center; border-bottom: 1px solid var(--border);
+    color: var(--text);
+}
+.year-menu-item:last-child { border-bottom: none; }
+.year-menu-item.active { font-weight: 700; }
+.year-menu-item:hover { background: var(--bg3); }
+
+.content {
+    flex: 1;
+    overflow-y: auto;
+    padding: var(--pad);
+    padding-bottom: calc(var(--nav-h) + 10px);
+    display: flex; flex-direction: column; gap: 12px;
+}
+
+/* ── BOTTOM NAV ──────────────────────────────── */
+.bottom-nav {
+    height: var(--nav-h);
+    display: flex; align-items: stretch;
+    border-top: 2px solid var(--accent);
+    background: var(--bg);
+    flex-shrink: 0;
+}
+.nav-btn {
+    flex: 1; display: flex; flex-direction: column;
+    align-items: center; justify-content: center; gap: 3px;
+    border: none; background: transparent; color: var(--text);
+    font-family: inherit; font-size: 9px; font-weight: 500;
+    cursor: pointer; opacity: 0.45; transition: opacity 0.15s;
+    text-transform: uppercase; letter-spacing: 0.05em;
+    position: relative;
+}
+.nav-btn.active { opacity: 1; font-weight: 700; }
+.nav-btn.active::before {
+    content: ''; position: absolute; top: -2px; left: 20%; right: 20%;
+    height: 2px; background: var(--accent);
+}
+.nav-btn svg { width: 20px; height: 20px; fill: currentColor; }
+
+/* ── CARDS ───────────────────────────────────── */
+.section-title {
+    font-size: 10px; font-weight: 700; text-transform: uppercase;
+    letter-spacing: 0.06em; color: var(--muted); margin-bottom: 8px; margin-top: 4px;
+}
+.kpi-grid {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 8px;
+}
+.kpi-card {
+    background: var(--bg2); border: 1px solid var(--border2);
+    padding: 12px 14px;
+}
+.kpi-val { font-size: 1.3rem; font-weight: 800; line-height: 1.1; }
+.kpi-val.neg { opacity: 0.55; }
+.kpi-label { font-size: 10px; color: var(--muted); margin-top: 3px; text-transform: uppercase; letter-spacing: 0.03em; }
+.kpi-sub { font-size: 10px; color: var(--muted); margin-top: 2px; }
+.kpi-card.full { grid-column: 1 / -1; }
+
+/* ── MK LIST ─────────────────────────────────── */
+.mk-month-select {
+    display: grid; grid-template-columns: repeat(6,1fr); gap: 3px; margin-bottom: 10px;
+}
+.mk-month-btn {
+    border: 1px solid var(--border); background: transparent; color: var(--text);
+    font-family: inherit; font-size: 11px; font-weight: 500; padding: 6px 2px;
+    cursor: pointer; text-align: center;
+    opacity: 0.5;
+}
+.mk-month-btn.active { opacity: 1; border-color: var(--accent); font-weight: 700; }
+.mk-month-btn.past { opacity: 0.7; }
+
+.mk-group { margin-bottom: 10px; }
+.mk-group-label {
+    font-size: 10px; font-weight: 700; text-transform: uppercase;
+    letter-spacing: 0.05em; color: var(--muted);
+    padding: 8px 12px; background: var(--bg2); border: 1px solid var(--border);
+    border-bottom: none;
+}
+.mk-row {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 10px 12px; background: var(--bg); border: 1px solid var(--border);
+    border-bottom: none; gap: 8px;
+}
+.mk-row:last-child { border-bottom: 1px solid var(--border); }
+.mk-row-left { display: flex; align-items: center; gap: 8px; flex: 1; min-width: 0; }
+.mk-dot { width: 8px; height: 8px; border: 1px solid var(--accent); flex-shrink: 0; }
+.mk-dot.paid { background: var(--accent); }
+.mk-name { font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.mk-amount { font-size: 13px; font-weight: 600; font-variant-numeric: tabular-nums; flex-shrink: 0; }
+.mk-pill {
+    font-size: 9px; font-weight: 700; text-transform: uppercase;
+    letter-spacing: 0.04em; padding: 3px 7px; border: 1px solid var(--border2);
+    flex-shrink: 0; opacity: 0.6;
+}
+.mk-pill.paid { opacity: 1; border-color: var(--accent); }
+.mk-empty { padding: 24px; text-align: center; color: var(--muted); font-size: 13px; border: 1px solid var(--border); }
+
+/* ── INV LIST ────────────────────────────────── */
+.inv-row {
+    display: flex; align-items: flex-start; justify-content: space-between;
+    padding: 11px 12px; background: var(--bg); border: 1px solid var(--border);
+    border-bottom: none; gap: 10px;
+}
+.inv-row:last-child { border-bottom: 1px solid var(--border); }
+.inv-left { flex: 1; min-width: 0; }
+.inv-name { font-size: 13px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.inv-meta { font-size: 10px; color: var(--muted); margin-top: 2px; }
+.inv-right { display: flex; flex-direction: column; align-items: flex-end; gap: 4px; flex-shrink: 0; }
+.inv-amount { font-size: 13px; font-weight: 700; font-variant-numeric: tabular-nums; }
+.inv-status { font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; padding: 2px 6px; border: 1px solid var(--border2); opacity: 0.6; }
+.inv-status.paid { opacity: 1; border-color: var(--accent); }
+.inv-status.late { border-color: var(--accent); opacity: 1; }
+
+/* ── SCHULDEN ────────────────────────────────── */
+.debt-bar-wrap { margin-top: 4px; height: 3px; background: var(--bg3); }
+.debt-bar-fill { height: 100%; background: var(--accent); }
+
+/* ── ERROR / EMPTY ───────────────────────────── */
+.empty-state { padding: 32px var(--pad); text-align: center; color: var(--muted); }
+.error-banner { background: var(--bg2); border: 1px solid var(--border2); padding: 12px var(--pad); font-size: 12px; color: var(--muted); text-align: center; }
+</style>
+</head>
+<body>
+<div class="app">
+    <header class="header">
+        <span class="header-title">Finanzen</span>
+        <div class="header-right">
+            <button id="fileBtn" onclick="connectFile()" style="font-size:12px;font-family:inherit;font-weight:600;background:transparent;border:1px solid rgba(250,250,247,0.3);color:#FAFAF7;padding:5px 10px;cursor:pointer;">Datei laden</button>
+            <button class="year-btn" id="yearBtn" onclick="toggleYearMenu()">
+                <span id="yearLabel">2026</span>
+                <div class="year-menu" id="yearMenu"></div>
+            </button>
+        </div>
+    </header>
+
+    <div class="content" id="content"></div>
+
+    <nav class="bottom-nav">
+        <button class="nav-btn active" id="nav-home" onclick="showTab('home')">
+            <svg viewBox="0 0 24 24"><path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z"/></svg>
+            Übersicht
+        </button>
+        <button class="nav-btn" id="nav-mk" onclick="showTab('mk')">
+            <svg viewBox="0 0 24 24"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-7 3c1.93 0 3.5 1.57 3.5 3.5S13.93 13 12 13s-3.5-1.57-3.5-3.5S10.07 6 12 6zm7 13H5v-.23c0-.62.28-1.2.76-1.58C7.47 15.82 9.64 15 12 15s4.53.82 6.24 2.19c.48.38.76.97.76 1.58V19z"/></svg>
+            Monat
+        </button>
+        <button class="nav-btn" id="nav-inv" onclick="showTab('inv')">
+            <svg viewBox="0 0 24 24"><path d="M14 2H6c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V8l-6-6zm2 16H8v-2h8v2zm0-4H8v-2h8v2zm-3-5V3.5L18.5 9H13z"/></svg>
+            Rechnungen
+        </button>
+        <button class="nav-btn" id="nav-debt" onclick="showTab('debt')">
+            <svg viewBox="0 0 24 24"><path d="M11.8 10.9c-2.27-.59-3-1.2-3-2.15 0-1.09 1.01-1.85 2.7-1.85 1.78 0 2.44.85 2.5 2.1h2.21c-.07-1.72-1.12-3.3-3.21-3.81V3h-3v2.16c-1.94.42-3.5 1.68-3.5 3.61 0 2.31 1.91 3.46 4.7 4.13 2.5.6 3 1.48 3 2.41 0 .69-.49 1.79-2.7 1.79-2.06 0-2.87-.92-2.98-2.1h-2.2c.12 2.19 1.76 3.42 3.68 3.83V21h3v-2.15c1.95-.37 3.5-1.5 3.5-3.55 0-2.84-2.43-3.81-4.7-4.4z"/></svg>
+            Schulden
+        </button>
+        <button class="nav-btn" id="nav-sparen" onclick="showTab('sparen')">
+            <svg viewBox="0 0 24 24"><path d="M19.83 7.5l-2.27-2.27c.07-.42.14-.84.14-1.23 0-2.21-1.79-4-4-4S9.7 1.79 9.7 4c0 .39.07.81.14 1.23L7.57 7.5A2 2 0 006 9.41V20c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V9.41c0-.83-.48-1.56-1.17-1.91zM13.7 16H10.3l.96-3.43c-.6-.36-1.01-1.02-1.01-1.78 0-1.13.92-2.05 2.05-2.05s2.05.92 2.05 2.05c0 .76-.41 1.42-1.01 1.78L14.7 16h-1zM11.7 4c0-1.1.9-2 2-2s2 .9 2 2-.9 2-2 2-2-.9-2-2z"/></svg>
+            Sparen
+        </button>
+    </nav>
+</div>
+
+<script>
+// ── STORAGE KEYS (identisch mit Finance_Planner) ──────────
+const STORAGE_KEY     = 'budget_multi_v14';
+const INVOICES_KEY    = 'budget_invoices_v1';
+const MK_STATUS_KEY   = 'fp_mk_status_v1';
+const STRUCTURE_KEY   = 'budget_structure_v1';
+const THEME_KEY       = 'fp_theme_bw';
+
+// ── STATE ─────────────────────────────────────────────────
+let DATA = {}, INVOICES = {}, MK_STATUS = {}, STRUCTURE = [], SAVINGS = {};
+let YEARS = [];
+let activeYear = new Date().getFullYear();
+let activeMonth = new Date().getMonth();
+let activeTab = 'home';
+let fileLoaded = false;
+
+// ── FILE HANDLE PERSISTENCE (IndexedDB) ──────────────────
+function storeHandle(handle){
+    return new Promise(res=>{
+        try{ localStorage.setItem('mob_file_name', handle.name); }catch(e){}
+        const req = indexedDB.open('MobileFinanceFS', 1);
+        req.onupgradeneeded = e => e.target.result.createObjectStore('handles');
+        req.onsuccess = e => {
+            const db = e.target.result;
+            const tx = db.transaction('handles','readwrite');
+            tx.objectStore('handles').put(handle, 'budgetFile');
+            tx.oncomplete = ()=>res();
+            tx.onerror = ()=>res();
+        };
+        req.onerror = ()=>res();
+    });
+}
+
+function restoreHandle(){
+    return new Promise(res=>{
+        const req = indexedDB.open('MobileFinanceFS', 1);
+        req.onupgradeneeded = e => e.target.result.createObjectStore('handles');
+        req.onsuccess = e => {
+            const db = e.target.result;
+            const tx = db.transaction('handles','readonly');
+            const get = tx.objectStore('handles').get('budgetFile');
+            get.onsuccess = ()=>res(get.result||null);
+            get.onerror   = ()=>res(null);
+        };
+        req.onerror = ()=>res(null);
+    });
+}
+
+async function tryRestoreFile(){
+    const handle = await restoreHandle();
+    if(handle){
+        try{
+            const perm = await handle.queryPermission({mode:'read'});
+            if(perm === 'granted'){
+                await loadFromHandle(handle);
+                return;
+            } else if(perm === 'prompt'){
+                const perm2 = await handle.requestPermission({mode:'read'});
+                if(perm2 === 'granted'){
+                    await loadFromHandle(handle);
+                    return;
+                }
+            }
+        } catch(e){}
+    }
+    // Kein Handle — leeren Zustand zeigen
+    init();
+}
+
+async function loadFromHandle(handle){
+    const file = await handle.getFile();
+    const text = await file.text();
+    const d = JSON.parse(text);
+    applyPayload(d);
+    fileLoaded = true;
+    fileHandle = handle;
+    updateFileBtn(handle.name);
+    buildYearMenu();
+    render();
+}
+
+// ── FILE LOAD ─────────────────────────────────────────────
+let fileHandle = null;
+
+async function connectFile(){
+    // Erst showOpenFilePicker versuchen (merkt sich den Pfad)
+    if(window.showOpenFilePicker){
+        try {
+            const [handle] = await window.showOpenFilePicker({
+                types:[{description:'Budget-Daten', accept:{'application/json':['.json']}}],
+                multiple: false
+            });
+            await storeHandle(handle);
+            await loadFromHandle(handle);
+            return;
+        } catch(e){
+            if(e.name === 'AbortError') return;
+            // Nicht unterstützt → Fallback
+        }
+    }
+    // Fallback: klassischer Datei-Picker
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = '.json,application/json';
+    input.onchange = async e=>{
+        const file = e.target.files[0];
+        if(!file) return;
+        try {
+            const text = await file.text();
+            const d = JSON.parse(text);
+            applyPayload(d);
+            fileLoaded = true;
+            updateFileBtn(file.name);
+            buildYearMenu();
+            render();
+        } catch(err) {
+            alert('Datei konnte nicht geladen werden.');
+        }
+    };
+    input.click();
+}
+
+function applyPayload(d){
+    const importData = d.data || d;
+    DATA      = importData;
+    INVOICES  = d.invoices  || {};
+    MK_STATUS = d.mkStatus  || {};
+    STRUCTURE = d.structure || [];
+    SAVINGS   = d.savings   || {};
+
+    YEARS = Object.keys(DATA).map(Number).filter(n=>!isNaN(n)&&n>=2024).sort((a,b)=>a-b);
+    if(!YEARS.length) YEARS = [new Date().getFullYear()];
+
+    const cy = new Date().getFullYear();
+    activeYear = YEARS.includes(cy) ? cy : YEARS[YEARS.length-1];
+}
+
+function updateFileBtn(name){
+    const btn = document.getElementById('fileBtn');
+    if(!btn) return;
+    if(fileLoaded){
+        btn.textContent = '✓ ' + (name || 'Verbunden');
+        btn.style.opacity = '0.6';
+        btn.style.fontSize = '10px';
+    } else {
+        btn.textContent = 'Datei laden';
+        btn.style.opacity = '1';
+        btn.style.fontSize = '12px';
+    }
+}
+
+// ── LOAD from localStorage (Fallback) ────────────────────
+function loadAll(){
+    try { DATA      = JSON.parse(localStorage.getItem(STORAGE_KEY))   || {}; } catch(e){ DATA={}; }
+    try { INVOICES  = JSON.parse(localStorage.getItem(INVOICES_KEY))  || {}; } catch(e){ INVOICES={}; }
+    try { MK_STATUS = JSON.parse(localStorage.getItem(MK_STATUS_KEY)) || {}; } catch(e){ MK_STATUS={}; }
+    try {
+        const s = localStorage.getItem(STRUCTURE_KEY);
+        STRUCTURE = s ? JSON.parse(s) : [];
+    } catch(e){ STRUCTURE=[]; }
+
+    YEARS = Object.keys(DATA).map(Number).filter(n=>!isNaN(n)&&n>=2024).sort((a,b)=>a-b);
+    if(!YEARS.length) YEARS = [new Date().getFullYear()];
+
+    const cy = new Date().getFullYear();
+    activeYear = YEARS.includes(cy) ? cy : YEARS[YEARS.length-1];
+}
+
+// ── HELPERS ───────────────────────────────────────────────
+function fmt(n){
+    if(!n && n!==0) return '–';
+    return Math.round(n).toLocaleString('de-CH').replace(/,/g,"'");
+}
+function esc(s){ return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+const MONTHS_SHORT = ['Jan','Feb','Mär','Apr','Mai','Jun','Jul','Aug','Sep','Okt','Nov','Dez'];
+const MONTHS_FULL  = ['Januar','Februar','März','April','Mai','Juni','Juli','August','September','Oktober','November','Dezember'];
+
+// ── YEAR MENU ─────────────────────────────────────────────
+function buildYearMenu(){
+    document.getElementById('yearLabel').textContent = activeYear;
+    const menu = document.getElementById('yearMenu');
+    menu.innerHTML = YEARS.slice().reverse().map(y =>
+        `<div class="year-menu-item${y===activeYear?' active':''}" onclick="selectYear(${y})">${y}</div>`
+    ).join('');
+}
+function toggleYearMenu(){
+    const m = document.getElementById('yearMenu');
+    m.classList.toggle('open');
+}
+function selectYear(y){
+    activeYear = y;
+    document.getElementById('yearMenu').classList.remove('open');
+    buildYearMenu();
+    render();
+}
+document.addEventListener('click', e=>{
+    if(!document.getElementById('yearBtn').contains(e.target))
+        document.getElementById('yearMenu').classList.remove('open');
+});
+
+// ── NAV ───────────────────────────────────────────────────
+function showTab(tab){
+    activeTab = tab;
+    document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+    document.getElementById('nav-'+tab).classList.add('active');
+    render();
+}
+
+// ── RENDER ────────────────────────────────────────────────
+function render(){
+    const el = document.getElementById('content');
+    if(activeTab === 'home')   el.innerHTML = renderHome();
+    else if(activeTab === 'mk')     el.innerHTML = renderMK();
+    else if(activeTab === 'inv')    el.innerHTML = renderInv();
+    else if(activeTab === 'debt')   el.innerHTML = renderDebt();
+    else if(activeTab === 'sparen') el.innerHTML = renderSparen();
+    el.scrollTop = 0;
+}
+
+// ── MONTH SWITCHER (shared) ───────────────────────────────
+function renderMonthSwitcher(){
+    const curMonth = new Date().getMonth();
+    const curYear  = new Date().getFullYear();
+    return `<div class="mk-month-select" style="margin-bottom:14px">${
+        MONTHS_SHORT.map((name,i)=>{
+            let cls = i===activeMonth ? 'active' : '';
+            if(cls==='' && (activeYear < curYear || (activeYear===curYear && i < curMonth))) cls='past';
+            return `<button class="mk-month-btn ${cls}" onclick="selectMonth(${i})">${name}</button>`;
+        }).join('')
+    }</div>`;
+}
+
+// ── HOME ──────────────────────────────────────────────────
+function renderHome(){
+    const D = DATA[activeYear] || {};
+    const m = activeMonth;
+    const curYear  = new Date().getFullYear();
+    const curMonth = new Date().getMonth();
+
+    const einkommensId = activeYear >= 2032 ? 'rente_eink_total' : 'netto';
+    const einM  = D[einkommensId]?.months?.[m] || 0;
+    const ausgM = D['summe_ausgaben']?.months?.[m] || 0;
+    const saldM = einM - ausgM;
+
+    // Kumuliert bis aktuellen Monat (oder Jahresende wenn Vorjahr)
+    let kum = 0;
+    const kumBis = (activeYear < curYear) ? 11 : (activeYear === curYear ? curMonth : m);
+    for(let i=0; i<=kumBis; i++){
+        kum += (D[einkommensId]?.months?.[i]||0) - (D['summe_ausgaben']?.months?.[i]||0);
+    }
+
+    const invArr   = Object.values(INVOICES).filter(inv=>!inv.wiederkehrend && (inv.faelligkeit||inv.eingang||'').startsWith(String(activeYear)));
+    const invOffen = invArr.filter(i=>i.status!=='bezahlt');
+    const invOffenSum = invOffen.reduce((s,i)=>s+(i.betrag||0),0);
+
+    const einLabel = activeYear >= 2032 ? 'Einnahmen' : 'Netto-Lohn';
+
+    return `
+        ${renderMonthSwitcher()}
+        <div class="section-title">${MONTHS_FULL[m]} ${activeYear}</div>
+        <div class="kpi-grid">
+            <div class="kpi-card">
+                <div class="kpi-val">${fmt(einM)}</div>
+                <div class="kpi-label">${einLabel}</div>
+            </div>
+            <div class="kpi-card">
+                <div class="kpi-val">${fmt(ausgM)}</div>
+                <div class="kpi-label">Ausgaben</div>
+            </div>
+            <div class="kpi-card">
+                <div class="kpi-val${saldM<0?' neg':''}">${fmt(saldM)}</div>
+                <div class="kpi-label">Saldo ${MONTHS_SHORT[m]}</div>
+            </div>
+            <div class="kpi-card">
+                <div class="kpi-val${kum<0?' neg':''}">${fmt(kum)}</div>
+                <div class="kpi-label">Kumuliert YTD</div>
+                <div class="kpi-sub">${activeYear} laufend</div>
+            </div>
+            <div class="kpi-card full">
+                <div class="kpi-val">${fmt(invOffenSum)}</div>
+                <div class="kpi-label">Rechnungen offen</div>
+                <div class="kpi-sub">${invOffen.length===0?'Keine offen ✓':invOffen.length+' offen'}</div>
+            </div>
+        </div>
+        <div class="section-title" style="margin-top:4px">Kategorien – ${MONTHS_SHORT[m]}</div>
+        ${renderCatBars(D, m)}`;
+}
+
+function renderCatBars(D, m){
+    const cats = [
+        {label:'Fixkosten',     id:'fix_total'},
+        {label:'Lebenshaltung', id:'leb_total'},
+        {label:'Abonnements',   id:'abo_total'},
+        {label:'Rückstellungen',id:'rs_total'},
+        {label:'Schulden',      id:'schuld_gesamt'},
+        {label:'Rechnungen',    id:'rech_betrag'},
+    ];
+    const rows = cats.map(c=>({...c, val: D[c.id]?.months?.[m]||0})).filter(c=>c.val>0);
+    if(!rows.length) return '<div class="empty-state">Keine Ausgaben in diesem Monat</div>';
+
+    const max = Math.max(...rows.map(r=>r.val));
+    const total = rows.reduce((s,r)=>s+r.val,0);
+
+    return rows.map(r=>{
+        const pct = total>0 ? Math.round(r.val/total*100) : 0;
+        const w   = max>0   ? Math.round(r.val/max*100)   : 0;
+        return `<div style="margin-bottom:10px">
+            <div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:3px">
+                <span>${esc(r.label)}</span>
+                <span style="font-variant-numeric:tabular-nums;color:var(--muted)">${fmt(r.val)} · ${pct}%</span>
+            </div>
+            <div style="height:4px;background:var(--bg3)">
+                <div style="height:100%;width:${w}%;background:var(--accent)"></div>
+            </div>
+        </div>`;
+    }).join('');
+}
+
+// ── MONATSKONTROLLE ───────────────────────────────────────
+function renderMK(){
+    const D = DATA[activeYear] || {};
+    const curMonth = new Date().getMonth();
+    const m = activeMonth;
+
+    // Monats-Chips
+    const chips = MONTHS_SHORT.map((name,i)=>{
+        const cls = i===m ? 'active' : (i < curMonth ? 'past' : '');
+        return `<button class="mk-month-btn ${cls}" onclick="selectMonth(${i})">${name}</button>`;
+    }).join('');
+
+    // Items aus STRUCTURE lesen
+    const mkCatIds = ['fixkosten','abos'];
+    let groups = [];
+
+    STRUCTURE.forEach(cat=>{
+        if(!mkCatIds.includes(cat.id)) return;
+        if(cat.hiddenFrom && activeYear >= cat.hiddenFrom) return;
+        if(cat.visibleFrom && activeYear < cat.visibleFrom) return;
+        const items = (cat.items||[]).filter(it=>{
+            if(it.hiddenFrom && activeYear >= it.hiddenFrom) return false;
+            const v = D[it.id]?.months?.[m]||0;
+            return v > 0;
+        }).map(it=>{
+            const v = D[it.id]?.months?.[m]||0;
+            const s = MK_STATUS?.[activeYear]?.[m]?.[it.id];
+            const status = s?.status || 'offen';
+            return {id:it.id, label:it.label, val:v, status};
+        });
+        if(items.length) groups.push({label:cat.label, items});
+    });
+
+    if(!groups.length) return `
+        <div class="mk-month-select">${chips}</div>
+        <div class="empty-state">Keine Positionen in ${MONTHS_FULL[m]}</div>`;
+
+    const groupsHtml = groups.map(g=>`
+        <div class="mk-group">
+            <div class="mk-group-label">${esc(g.label)} · ${g.items.length} Positionen</div>
+            ${g.items.map(it=>`
+            <div class="mk-row">
+                <div class="mk-row-left">
+                    <div class="mk-dot${it.status==='bezahlt'?' paid':''}"></div>
+                    <span class="mk-name">${esc(it.label)}</span>
+                </div>
+                <div style="display:flex;align-items:center;gap:8px">
+                    <span class="mk-amount">${fmt(it.val)}</span>
+                    <span class="mk-pill${it.status==='bezahlt'?' paid':''}">${it.status==='bezahlt'?'BEZAHLT':'OFFEN'}</span>
+                </div>
+            </div>`).join('')}
+        </div>`).join('');
+
+    return `<div class="mk-month-select">${chips}</div>${groupsHtml}`;
+}
+
+function selectMonth(m){
+    activeMonth = m;
+    render();
+}
+
+// ── RECHNUNGEN ────────────────────────────────────────────
+function renderInv(){
+    const invArr = Object.values(INVOICES).filter(inv=>{
+        if(inv.wiederkehrend) return false;
+        const d = inv.faelligkeit||inv.eingang||'';
+        return d.startsWith(String(activeYear));
+    }).sort((a,b)=>{
+        const da = a.faelligkeit||a.eingang||'';
+        const db = b.faelligkeit||b.eingang||'';
+        return da.localeCompare(db);
+    });
+
+    if(!invArr.length) return `<div class="empty-state">Keine Rechnungen für ${activeYear}</div>`;
+
+    // Nach Monat gruppieren
+    const byMonth = {};
+    invArr.forEach(inv=>{
+        const d = inv.faelligkeit||inv.eingang||'';
+        const mNum = parseInt((d.split('-')[1]||'1'))-1;
+        if(!byMonth[mNum]) byMonth[mNum] = [];
+        byMonth[mNum].push(inv);
+    });
+
+    const totalOffen = invArr.filter(i=>i.status!=='bezahlt').reduce((s,i)=>s+(i.betrag||0),0);
+    const totalBezahlt = invArr.filter(i=>i.status==='bezahlt').reduce((s,i)=>s+(i.betrag||0),0);
+
+    let html = `<div class="kpi-grid" style="margin-bottom:12px">
+        <div class="kpi-card"><div class="kpi-val">${fmt(totalOffen)}</div><div class="kpi-label">Offen</div></div>
+        <div class="kpi-card"><div class="kpi-val">${fmt(totalBezahlt)}</div><div class="kpi-label">Bezahlt</div></div>
+    </div>`;
+
+    Object.keys(byMonth).sort((a,b)=>a-b).forEach(mNum=>{
+        const invs = byMonth[mNum];
+        html += `<div class="section-title">${MONTHS_FULL[mNum]}</div>`;
+        html += invs.map(inv=>{
+            const isPaid = inv.status==='bezahlt';
+            const isLate = !isPaid && inv.faelligkeit && new Date(inv.faelligkeit) < new Date();
+            const statusLabel = isPaid ? 'BEZAHLT' : isLate ? 'ÜBERFÄLLIG' : 'OFFEN';
+            const statusCls = isPaid ? 'paid' : isLate ? 'late' : '';
+            const meta = [inv.rechnungssteller, inv.faelligkeit ? 'Fällig '+inv.faelligkeit.slice(0,10) : ''].filter(Boolean).join(' · ');
+            return `<div class="inv-row">
+                <div class="inv-left">
+                    <div class="inv-name">${esc(inv.bezeichnung||inv.rechnungssteller||'–')}</div>
+                    <div class="inv-meta">${esc(meta)}</div>
+                </div>
+                <div class="inv-right">
+                    <span class="inv-amount">${fmt(inv.betrag)}</span>
+                    <span class="inv-status ${statusCls}">${statusLabel}</span>
+                </div>
+            </div>`;
+        }).join('');
+    });
+
+    return html;
+}
+
+// ── SPAREN ────────────────────────────────────────────────
+function renderSparen(){
+    const savings = SAVINGS || {};
+    const goals   = savings.goals || [];
+    const accounts = savings.accounts || [];
+    const txs     = savings.transactions || [];
+    const balances = savings.accountBalances || {};
+
+    if(!goals.length) return `<div class="empty-state">Keine Sparziele erfasst</div>`;
+
+    // Gesamtsaldo über alle Konten
+    const totalBalance = accounts.reduce((s,a)=>{
+        const b = balances[a.id] || 0;
+        return s + b;
+    },0);
+
+    let html = '';
+
+    if(accounts.length){
+        html += `<div class="kpi-grid" style="margin-bottom:12px">
+            <div class="kpi-card full">
+                <div class="kpi-val">${fmt(totalBalance)}</div>
+                <div class="kpi-label">Gesamtsaldo Sparkonten</div>
+            </div>
+        </div>`;
+    }
+
+    html += `<div class="section-title">Sparziele</div>`;
+
+    goals.forEach(goal=>{
+        if(!goal || !goal.id) return;
+        const target  = goal.targetAmount || 0;
+        const balance = balances[goal.accountId] || 0;
+        // Buchungen für dieses Ziel
+        const goalTxs = txs.filter(t=>t.goalId===goal.id);
+        const saved   = goalTxs.filter(t=>t.type==='deposit').reduce((s,t)=>s+(t.amount||0),0)
+                      - goalTxs.filter(t=>t.type==='withdrawal').reduce((s,t)=>s+(t.amount||0),0);
+        const pct     = target>0 ? Math.min(100, Math.round(saved/target*100)) : 0;
+        const rest    = Math.max(0, target - saved);
+
+        html += `<div class="kpi-card" style="margin-bottom:8px">
+            <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:6px">
+                <span style="font-size:13px;font-weight:600">${esc(goal.name||'–')}</span>
+                <span style="font-size:11px;color:var(--muted)">${pct}%</span>
+            </div>
+            <div style="display:flex;justify-content:space-between;margin-bottom:6px">
+                <div><div class="kpi-val" style="font-size:1.1rem">${fmt(saved)}</div><div class="kpi-label">Gespart</div></div>
+                ${target>0?`<div style="text-align:right"><div class="kpi-val" style="font-size:1.1rem">${fmt(rest)}</div><div class="kpi-label">Rest</div></div>`:''}
+            </div>
+            ${target>0?`<div class="debt-bar-wrap"><div class="debt-bar-fill" style="width:${pct}%"></div></div>`:''}
+            ${goal.targetDate?`<div style="font-size:10px;color:var(--muted);margin-top:6px">Ziel: ${esc(goal.targetDate)}</div>`:''}
+        </div>`;
+    });
+
+    return html;
+}
+
+// ── SCHULDEN ──────────────────────────────────────────────
+function renderDebt(){
+    const debtIds = getDebtIds();
+    if(!debtIds.length) return `<div class="empty-state">Keine Schulden erfasst</div>`;
+
+    let html = '';
+    let grandTotal = 0;
+    let grandPaid = 0;
+
+    debtIds.forEach(id=>{
+        const label = getItemLabel(id);
+        const ansatz = DATA[activeYear]?.[id]?.ansatz || 0;
+        const paid   = (DATA[activeYear]?.[id]?.months||[]).reduce((s,v)=>s+v,0);
+        const rest   = Math.max(0, ansatz - paid);
+        if(ansatz <= 0) return;
+        grandTotal += ansatz;
+        grandPaid  += paid;
+        const pct = ansatz > 0 ? Math.round(paid/ansatz*100) : 0;
+        html += `<div class="kpi-card" style="margin-bottom:8px">
+            <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:6px">
+                <span style="font-size:12px;font-weight:600">${esc(label)}</span>
+                <span style="font-size:11px;color:var(--muted)">${pct}% bezahlt</span>
+            </div>
+            <div style="display:flex;justify-content:space-between;margin-bottom:6px">
+                <div><div class="kpi-val" style="font-size:1.1rem">${fmt(rest)}</div><div class="kpi-label">Rest</div></div>
+                <div style="text-align:right"><div class="kpi-val" style="font-size:1.1rem">${fmt(ansatz)}</div><div class="kpi-label">Gesamt</div></div>
+            </div>
+            <div class="debt-bar-wrap"><div class="debt-bar-fill" style="width:${pct}%"></div></div>
+        </div>`;
+    });
+
+    const grandRest = Math.max(0, grandTotal - grandPaid);
+    const grandPct  = grandTotal > 0 ? Math.round(grandPaid/grandTotal*100) : 0;
+
+    if(!html) return `<div class="empty-state">Keine Schulden für ${activeYear}</div>`;
+
+    return `<div class="kpi-grid" style="margin-bottom:12px">
+        <div class="kpi-card"><div class="kpi-val">${fmt(grandRest)}</div><div class="kpi-label">Total Rest</div></div>
+        <div class="kpi-card"><div class="kpi-val">${grandPct}%</div><div class="kpi-label">Bezahlt</div></div>
+    </div>
+    <div class="section-title">Einzelne Positionen</div>
+    ${html}`;
+}
+
+function getDebtIds(){
+    const ids = [];
+    STRUCTURE.forEach(cat=>{
+        if(cat.type==='super' && cat.subcats){
+            cat.subcats.forEach(sc=>{
+                (sc.items||[]).forEach(it=>ids.push(it.id));
+            });
+        }
+    });
+    return ids.filter(id=>YEARS.some(y=>(DATA[y]?.[id]?.ansatz||0)>0));
+}
+
+function getItemLabel(id){
+    let label = id;
+    STRUCTURE.forEach(cat=>{
+        (cat.items||[]).forEach(it=>{ if(it.id===id) label=it.label; });
+        (cat.subcats||[]).forEach(sc=>{
+            (sc.items||[]).forEach(it=>{ if(it.id===id) label=it.label; });
+        });
+    });
+    return label;
+}
+
+// ── INIT ──────────────────────────────────────────────────
+function init(){
+    loadAll(); // localStorage Fallback
+    buildYearMenu();
+    if(!Object.keys(DATA).length){
+        document.getElementById('content').innerHTML = `
+            <div style="padding:40px 20px;text-align:center;display:flex;flex-direction:column;align-items:center;gap:20px">
+                <div style="font-size:32px;opacity:0.3">◈</div>
+                <div style="font-size:14px;font-weight:600">Keine Daten geladen</div>
+                <div style="font-size:12px;opacity:0.5;line-height:1.6">Tippe auf „Datei laden" und wähle<br>die budget_data.json aus OneDrive.</div>
+                <button onclick="connectFile()" style="font-size:13px;font-family:inherit;font-weight:700;background:transparent;border:1px solid rgba(250,250,247,0.4);color:#FAFAF7;padding:12px 24px;cursor:pointer;text-transform:uppercase;letter-spacing:0.05em;">Datei laden</button>
+            </div>`;
+        return;
+    }
+    render();
+}
+
+// Beim Start: zuerst gespeicherten Handle wiederherstellen, sonst normal init
+if(window.showOpenFilePicker){
+    tryRestoreFile().catch(()=>init());
+} else {
+    init();
+}
+</script>
+</body>
+</html>
