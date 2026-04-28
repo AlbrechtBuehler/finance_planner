@@ -246,11 +246,10 @@ async function initMsal(){
   if(!cfg?.clientId) return false;
   try{
     msal=new window.msal.PublicClientApplication({
-      auth:{ clientId:cfg.clientId, authority:'https://login.microsoftonline.com/common', redirectUri:window.location.href.split('#')[0].split('?')[0] },
+      auth:{ clientId:cfg.clientId, authority:'https://login.microsoftonline.com/89cc8152-7ce8-4275-8e4e-de52f805c629', redirectUri:window.location.href.split('#')[0].split('?')[0] },
       cache:{ cacheLocation:'localStorage', storeAuthStateInCookie:true }
     });
-    await msal.initialize();
-    const result=await msal.handleRedirectPromise();
+    const result=await msal.handleRedirectPromise().catch(()=>null);
     if(result) token=result.accessToken;
     return true;
   }catch(e){ console.error(e); return false; }
