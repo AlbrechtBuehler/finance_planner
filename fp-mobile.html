@@ -1,0 +1,540 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,maximum-scale=1">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black">
+<meta name="theme-color" content="#000000">
+<title>Finanzplaner</title>
+<script src="https://cdn.jsdelivr.net/npm/@azure/msal-browser@2.38.3/dist/msal-browser.min.js"></script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+:root{
+  --bg:#000;--surface:#0F100E;--border:rgba(250,250,247,.18);--border-strong:rgba(250,250,247,.55);
+  --text:#FAFAF7;--muted:rgba(250,250,247,.5);--accent:#FAFAF7;
+  --safe-top:env(safe-area-inset-top);--safe-bot:env(safe-area-inset-bottom);
+}
+html,body{height:100%;background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,sans-serif}
+#app{display:flex;flex-direction:column;height:100%;max-width:480px;margin:0 auto}
+
+/* ── Setup ── */
+.setup{flex:1;display:flex;flex-direction:column;justify-content:center;padding:32px 24px;gap:20px}
+.setup h1{font-size:22px;font-weight:600;letter-spacing:-.02em}
+.setup p{font-size:13px;color:var(--muted);line-height:1.6}
+.setup input{width:100%;background:var(--surface);border:1px solid var(--border-strong);color:var(--text);
+  font-family:inherit;font-size:15px;padding:13px 14px;border-radius:0;outline:none;-webkit-appearance:none}
+.setup input::placeholder{color:var(--muted)}
+.setup label{font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);margin-bottom:5px;display:block}
+.setup .field{display:flex;flex-direction:column}
+.btn{background:var(--accent);color:#000;font-family:inherit;font-size:15px;font-weight:600;
+  padding:14px;border:none;border-radius:0;cursor:pointer;width:100%;letter-spacing:.01em}
+.btn:active{opacity:.8}
+.btn-ghost{background:transparent;color:var(--text);border:1px solid var(--border-strong);font-family:inherit;
+  font-size:13px;padding:10px;cursor:pointer;border-radius:0;width:100%}
+.hint{font-size:11px;color:var(--muted);line-height:1.6}
+.hint a{color:var(--text)}
+
+/* ── Loading / Error ── */
+.center{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;padding:24px;text-align:center}
+.spinner{width:28px;height:28px;border:2px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:spin .8s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.center p{font-size:14px;color:var(--muted)}
+.center .err-msg{font-size:13px;color:var(--text);line-height:1.6;max-width:300px}
+
+/* ── Header ── */
+.header{padding:calc(var(--safe-top) + 14px) 20px 12px;display:flex;align-items:baseline;justify-content:space-between;border-bottom:1px solid var(--border)}
+.header-title{font-size:13px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;color:var(--muted)}
+.header-sub{font-size:11px;color:var(--muted)}
+.reload-btn{background:none;border:none;color:var(--muted);cursor:pointer;font-size:18px;padding:2px 6px;line-height:1}
+.saving-dot{width:6px;height:6px;border-radius:50%;background:var(--muted)}
+.saving-dot.active{background:var(--accent)}
+
+/* ── Tabs ── */
+.tab-content{flex:1;overflow-y:auto;padding:20px 16px;-webkit-overflow-scrolling:touch}
+.bottom-nav{display:flex;border-top:1px solid var(--border);padding-bottom:var(--safe-bot);background:var(--bg)}
+.nav-btn{flex:1;display:flex;flex-direction:column;align-items:center;gap:4px;padding:11px 8px;
+  background:none;border:none;cursor:pointer;font-family:inherit}
+.nav-btn svg{width:20px;height:20px;stroke:var(--muted);fill:none;stroke-width:1.5;stroke-linecap:round;stroke-linejoin:round}
+.nav-btn span{font-size:10px;color:var(--muted);letter-spacing:.03em}
+.nav-btn.active svg{stroke:var(--accent)}
+.nav-btn.active span{color:var(--accent)}
+
+/* ── KPI Grid ── */
+.kpi-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:20px}
+.kpi-card{background:var(--surface);padding:14px;display:flex;flex-direction:column;gap:4px}
+.kpi-label{font-size:10px;text-transform:uppercase;letter-spacing:.07em;color:var(--muted)}
+.kpi-val{font-size:20px;font-weight:600;font-variant-numeric:tabular-nums;letter-spacing:-.02em}
+.kpi-sub{font-size:11px;color:var(--muted)}
+
+/* ── Section ── */
+.section-line{height:1px;background:var(--border);margin:20px 0 16px}
+.section-title{font-size:10px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);margin-bottom:12px}
+
+/* ── HB Cards ── */
+.hb-card{background:var(--surface);border:1px solid var(--border-strong);padding:15px;margin-bottom:10px;cursor:pointer}
+.hb-card.current{border-left:3px solid var(--accent);background:#0F100E}
+.hb-card-head{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:8px}
+.hb-card-period{font-size:12px;font-weight:500;color:var(--text)}
+.hb-card-badge{font-size:9px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted)}
+.hb-card-current .hb-card-badge{font-weight:700;color:var(--text)}
+.hb-hero{font-size:26px;font-weight:600;font-variant-numeric:tabular-nums;letter-spacing:-.02em;margin-bottom:2px}
+.hb-hero-label{font-size:11px;color:var(--muted);margin-bottom:10px}
+.hb-bar-wrap{height:3px;background:rgba(250,250,247,.1);position:relative;margin-bottom:4px}
+.hb-bar-fill{height:100%;background:var(--accent);transition:width .3s}
+.hb-bar-tick{position:absolute;top:-3px;bottom:-3px;width:2px;background:var(--accent);opacity:.4;transform:translateX(-50%)}
+.hb-bar-info{display:flex;justify-content:space-between;font-size:10px;color:var(--muted);font-variant-numeric:tabular-nums}
+.hb-foot{font-size:11px;color:var(--muted);margin-top:8px}
+
+/* ── Schulden ── */
+.schuld-bar-wrap{height:3px;background:rgba(250,250,247,.1);margin:8px 0 6px}
+.schuld-bar-fill{height:100%;background:var(--accent);transition:width .3s}
+.schuld-row{display:flex;justify-content:space-between;align-items:baseline}
+.schuld-val{font-size:18px;font-weight:600;font-variant-numeric:tabular-nums}
+.schuld-sub{font-size:11px;color:var(--muted)}
+
+/* ── FAB ── */
+.fab-wrap{position:relative}
+.fab{position:fixed;bottom:calc(var(--safe-bot) + 68px);right:20px;width:52px;height:52px;
+  background:var(--accent);color:#000;border:none;border-radius:50%;cursor:pointer;
+  font-size:24px;font-weight:300;display:flex;align-items:center;justify-content:center;z-index:50}
+
+/* ── Bottom Sheet ── */
+.sheet-overlay{position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:100;display:flex;flex-direction:column;justify-content:flex-end}
+.sheet{background:var(--bg);border-top:1px solid var(--border-strong);padding-bottom:var(--safe-bot);max-height:90vh;overflow-y:auto}
+.sheet-handle{width:36px;height:3px;background:var(--border-strong);border-radius:2px;margin:12px auto 16px}
+.sheet-title{font-size:13px;font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);padding:0 20px 14px}
+.amount-input{font-size:40px;font-weight:300;font-variant-numeric:tabular-nums;letter-spacing:-.02em;
+  width:100%;background:none;border:none;border-bottom:2px solid var(--border-strong);color:var(--text);
+  font-family:inherit;padding:8px 20px 12px;outline:none;text-align:right}
+.type-toggle{display:flex;margin:16px 20px}
+.type-btn{flex:1;padding:9px;background:none;border:1px solid var(--border-strong);color:var(--muted);
+  font-family:inherit;font-size:13px;cursor:pointer}
+.type-btn:first-child{border-right:none}
+.type-btn.active{background:var(--accent);color:#000;border-color:var(--accent);font-weight:600}
+.cat-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;padding:4px 20px 16px}
+.cat-btn{padding:9px 6px;background:none;border:1px solid var(--border-strong);color:var(--muted);
+  font-family:inherit;font-size:12px;cursor:pointer;text-align:center}
+.cat-btn.active{background:var(--accent);color:#000;border-color:var(--accent);font-weight:600}
+.desc-input{width:calc(100% - 40px);margin:0 20px 16px;background:var(--surface);border:1px solid var(--border-strong);
+  color:var(--text);font-family:inherit;font-size:14px;padding:11px 12px;border-radius:0;outline:none;display:block}
+.desc-input::placeholder{color:var(--muted)}
+.sheet-actions{display:flex;gap:10px;padding:8px 20px 16px}
+.sheet-save{flex:1;background:var(--accent);color:#000;font-family:inherit;font-size:15px;font-weight:600;
+  padding:13px;border:none;cursor:pointer;border-radius:0}
+.sheet-cancel{background:none;border:1px solid var(--border-strong);color:var(--muted);font-family:inherit;
+  font-size:14px;padding:13px 18px;cursor:pointer;border-radius:0}
+.sheet-save:active,.sheet-cancel:active{opacity:.7}
+.toast{position:fixed;bottom:calc(var(--safe-bot) + 80px);left:50%;transform:translateX(-50%);
+  background:var(--accent);color:#000;font-size:13px;font-weight:600;padding:10px 20px;z-index:200;
+  animation:toast .1s ease,fadeout .3s ease 1.7s forwards;white-space:nowrap}
+@keyframes toast{from{opacity:0;transform:translateX(-50%) translateY(8px)}to{opacity:1;transform:translateX(-50%)}}
+@keyframes fadeout{to{opacity:0}}
+</style>
+</head>
+<body>
+<div id="app"></div>
+<script>
+'use strict';
+const CFG_KEY='fp_mobile_cfg_v1';
+const MON_S=['Jan','Feb','Mrz','Apr','Mai','Jun','Jul','Aug','Sep','Okt','Nov','Dez'];
+const MON_F=['Januar','Februar','März','April','Mai','Juni','Juli','August','September','Oktober','November','Dezember'];
+const GRAPH='https://graph.microsoft.com/v1.0';
+
+let cfg=null, msal=null, token=null, payload=null;
+let tab='overview', showAdd=false, saving=false;
+let addForm={amount:'',type:'out',cat:'',desc:''};
+
+// ── Config ──────────────────────────────────────────────
+function loadCfg(){ try{ return JSON.parse(localStorage.getItem(CFG_KEY)); }catch(e){ return null; } }
+function saveCfg(c){ localStorage.setItem(CFG_KEY,JSON.stringify(c)); }
+
+// ── Format ──────────────────────────────────────────────
+function fmt(v){
+  if(v===null||v===undefined||isNaN(v)) return '—';
+  const neg=v<0,abs=Math.abs(v);
+  const p=abs.toFixed(2).split('.');
+  p[0]=p[0].replace(/\B(?=(\d{3})+(?!\d))/g,"'");
+  return (neg?'−':'')+p.join('.');
+}
+function fmtCHF(v){ return 'CHF '+fmt(v); }
+
+// ── HB helpers (ported from desktop) ────────────────────
+function hbKey(y,m){ return y+'-'+String(m+1).padStart(2,'0'); }
+function hbCfg(){ return payload?.data?._hb?.config||{defaultDay:25}; }
+function hbPeriods(){ return payload?.data?._hb?.periods||{}; }
+function hbLohnDay(y,m){ return hbPeriods()[hbKey(y,m)]?.lohnDay||hbCfg().defaultDay||25; }
+function hbStart(y,m){
+  const k=hbKey(y,m), stored=hbPeriods()[k]?.startISO;
+  if(stored){ const d=new Date(stored+'T00:00:00'); if(!isNaN(d)) return d; }
+  const day=hbLohnDay(y,m);
+  return new Date(y,m,Math.min(day,new Date(y,m+1,0).getDate()));
+}
+function hbEnd(y,m){
+  const k=hbKey(y,m), stored=hbPeriods()[k]?.endISO;
+  if(stored){ const d=new Date(stored+'T00:00:00'); if(!isNaN(d)) return d; }
+  const ny=m===11?y+1:y, nm=(m+1)%12;
+  return new Date(hbStart(ny,nm).getTime()-86400000);
+}
+function hbEntries(y,m){ return hbPeriods()[hbKey(y,m)]?.entries||[]; }
+function hbSum(y,m,type){ return hbEntries(y,m).filter(e=>e.type===type).reduce((s,e)=>s+(e.amount||0),0); }
+function hbBudget(y,m){ return hbPeriods()[hbKey(y,m)]?.budget||0; }
+function hbCalc(y,m){
+  const today=new Date(); today.setHours(0,0,0,0);
+  const start=hbStart(y,m), end=hbEnd(y,m);
+  const isCur=today>=start&&today<=end, isPast=!isCur&&today>end, isFuture=!isCur&&!isPast;
+  const budget=hbBudget(y,m), ausgaben=hbSum(y,m,'out'), einnahmen=hbSum(y,m,'in');
+  const saldo=budget+einnahmen-ausgaben, totalDays=Math.round((end-start)/86400000)+1;
+  let remainDays=0,perDay=0,dayUsed=0,avgDay=0;
+  if(isCur){ remainDays=Math.max(0,Math.round((end-today)/86400000)+1); perDay=remainDays>0?saldo/remainDays:0; dayUsed=Math.max(1,Math.round((today-start)/86400000)+1); }
+  else if(isPast){ dayUsed=totalDays; }
+  avgDay=dayUsed>0&&ausgaben>0?ausgaben/dayUsed:0;
+  const pct=budget>0?Math.min(100,ausgaben/(budget+einnahmen)*100):0;
+  const s=start,e=end;
+  const dStr=(d)=>String(d.getDate()).padStart(2,'0')+'. '+MON_S[d.getMonth()];
+  const label=dStr(s)+' – '+dStr(e);
+  return {budget,ausgaben,einnahmen,saldo,totalDays,remainDays,perDay,dayUsed,avgDay,pct,isCur,isPast,isFuture,start,end,label};
+}
+function hbCurrentPeriod(){
+  const today=new Date();
+  for(let m=0;m<12;m++){ const c=hbCalc(today.getFullYear(),m); if(c.isCur) return {y:today.getFullYear(),m}; }
+  return {y:today.getFullYear(),m:today.getMonth()};
+}
+function hbNextPeriod(y,m){ return m===11?{y:y+1,m:0}:{y,m:m+1}; }
+function hbCategories(){
+  const cats=payload?.data?._hb?.config?.categories||[];
+  if(cats.length) return cats.map(c=>typeof c==='string'?{id:c,label:c}:c);
+  return [
+    {id:'lebensmittel',label:'Lebensmittel'},{id:'restaurant',label:'Restaurant'},
+    {id:'transport',label:'Transport'},{id:'gesundheit',label:'Gesundheit'},
+    {id:'freizeit',label:'Freizeit'},{id:'haushalt',label:'Haushalt'},
+    {id:'kleidung',label:'Kleidung'},{id:'sonstiges',label:'Sonstiges'}
+  ];
+}
+
+// ── Data / KPI ───────────────────────────────────────────
+function currentYear(){ return new Date().getFullYear(); }
+function currentMonth(){ return new Date().getMonth(); }
+function dataYear(y){ return payload?.data?.[y]||{}; }
+function monthVal(id,m,y){ return dataYear(y||currentYear())[id]?.months[m]||0; }
+function schuldenTotal(){
+  let total=0;
+  const structure=payload?.structure||[];
+  const verbind=structure.find(c=>c.id==='verbind');
+  if(verbind?.subcats){
+    verbind.subcats.forEach(sc=>(sc.items||[]).forEach(it=>{
+      total+=(dataYear(currentYear())[it.id]?.ansatz||0);
+    }));
+  }
+  return total;
+}
+function schuldenInitial(){
+  // Erste Schulden aus 2024 (Startjahr)
+  let total=0;
+  const structure=payload?.structure||[];
+  const verbind=structure.find(c=>c.id==='verbind');
+  if(verbind?.subcats){
+    verbind.subcats.forEach(sc=>(sc.items||[]).forEach(it=>{
+      total+=(payload?.data?.[2024]?.[it.id]?.ansatz||payload?.data?.[2025]?.[it.id]?.ansatz||0);
+    }));
+  }
+  return total||schuldenTotal();
+}
+
+// ── MSAL / Auth / Graph ──────────────────────────────────
+async function initMsal(){
+  if(!cfg?.clientId) return false;
+  try{
+    msal=new window.msal.PublicClientApplication({
+      auth:{ clientId:cfg.clientId, authority:'https://login.microsoftonline.com/consumers', redirectUri:window.location.href.split('#')[0].split('?')[0] },
+      cache:{ cacheLocation:'localStorage', storeAuthStateInCookie:true }
+    });
+    await msal.initialize();
+    const result=await msal.handleRedirectPromise();
+    if(result) token=result.accessToken;
+    return true;
+  }catch(e){ console.error(e); return false; }
+}
+async function getToken(){
+  if(!msal) return null;
+  const accounts=msal.getAllAccounts();
+  const req={scopes:['Files.ReadWrite']};
+  try{
+    const r=accounts.length>0
+      ? await msal.acquireTokenSilent({...req,account:accounts[0]})
+      : await msal.loginPopup(req);
+    return r.accessToken;
+  }catch(e){
+    if(e.errorCode==='interaction_required'||e.errorCode==='no_account_found'||accounts.length===0){
+      try{ const r=await msal.loginPopup(req); return r.accessToken; }catch(e2){ console.error(e2); return null; }
+    }
+    return null;
+  }
+}
+async function graphGet(path){
+  const t=token||await getToken(); if(!t) throw new Error('Kein Token');
+  token=t;
+  const r=await fetch(GRAPH+path,{headers:{'Authorization':'Bearer '+t}});
+  if(!r.ok) throw new Error('HTTP '+r.status+': '+path);
+  return r;
+}
+async function graphPut(path,data){
+  const t=token||await getToken(); if(!t) throw new Error('Kein Token');
+  token=t;
+  const r=await fetch(GRAPH+path,{method:'PUT',headers:{'Authorization':'Bearer '+t,'Content-Type':'application/json'},body:JSON.stringify(data,null,2)});
+  if(!r.ok) throw new Error('HTTP '+r.status);
+}
+async function loadFile(){
+  const enc=encodeURIComponent(cfg.filePath);
+  const r=await graphGet('/me/drive/root:/'+enc+':/content');
+  payload=await r.json();
+}
+async function saveFile(){
+  if(!payload) return;
+  saving=true; render();
+  try{
+    const enc=encodeURIComponent(cfg.filePath);
+    await graphPut('/me/drive/root:/'+enc+':/content',payload);
+  }catch(e){ showToast('Fehler beim Speichern'); }
+  finally{ saving=false; render(); }
+}
+
+// ── Add HB Entry ─────────────────────────────────────────
+async function addEntry(){
+  const amt=parseFloat(addForm.amount.replace(/[\']/g,'').replace(',','.'));
+  if(!amt||isNaN(amt)) return;
+  const {y,m}=hbCurrentPeriod();
+  const k=hbKey(y,m);
+  if(!payload.data._hb) payload.data._hb={config:{defaultDay:25},periods:{}};
+  if(!payload.data._hb.periods[k]) payload.data._hb.periods[k]={entries:[]};
+  const entry={
+    id:Date.now().toString(36)+Math.random().toString(36).slice(2,6),
+    type:addForm.type, amount:amt,
+    desc:addForm.desc||addForm.cat||'',
+    cat:addForm.cat||null,
+    date:new Date().toISOString().slice(0,10)
+  };
+  payload.data._hb.periods[k].entries.push(entry);
+  addForm={amount:'',type:'out',cat:'',desc:''};
+  showAdd=false;
+  await saveFile();
+  showToast('Gespeichert');
+}
+
+// ── Toast ────────────────────────────────────────────────
+function showToast(msg){
+  const t=document.createElement('div');
+  t.className='toast'; t.textContent=msg;
+  document.body.appendChild(t);
+  setTimeout(()=>t.remove(),2100);
+}
+
+// ── Render ───────────────────────────────────────────────
+let _status='init',_errMsg='';
+
+function render(){
+  const app=document.getElementById('app');
+  if(_status==='setup') { app.innerHTML=renderSetup(); bindSetup(); return; }
+  if(_status==='loading'){ app.innerHTML='<div class="center"><div class="spinner"></div><p>Verbinde mit OneDrive…</p></div>'; return; }
+  if(_status==='error')  { app.innerHTML=renderError(); bindError(); return; }
+  app.innerHTML=renderMain();
+  bindMain();
+  if(showAdd){ document.getElementById('sheet-overlay').addEventListener('click',e=>{ if(e.target.id==='sheet-overlay'){showAdd=false;render();} }); }
+}
+
+function renderSetup(){
+  return '<div class="setup">'+
+    '<h1>Finanzplaner</h1>'+
+    '<p>Verbinde mit deiner OneDrive-Datei über die Microsoft Graph API.</p>'+
+    '<div class="field"><label>Azure Client ID</label><input id="s-cid" placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx" autocomplete="off" spellcheck="false"></div>'+
+    '<div class="field"><label>OneDrive-Pfad zur JSON-Datei</label><input id="s-path" placeholder="Dokumente/fp.json" autocomplete="off" spellcheck="false"></div>'+
+    '<button class="btn" id="s-connect">Verbinden</button>'+
+    '<p class="hint">Azure App registrieren: <a href="https://portal.azure.com/#view/Microsoft_AAD_RegisteredApps/CreateApplicationBlade" target="_blank">portal.azure.com</a> → Neue Registrierung → Plattform: Single-page app → Redirect URI: diese Seite</p>'+
+  '</div>';
+}
+function bindSetup(){
+  document.getElementById('s-connect').onclick=async()=>{
+    const cid=document.getElementById('s-cid').value.trim();
+    const path=document.getElementById('s-path').value.trim().replace(/^\/+/,'');
+    if(!cid||!path){ showToast('Bitte alle Felder ausfüllen'); return; }
+    cfg={clientId:cid,filePath:path}; saveCfg(cfg);
+    await boot();
+  };
+}
+
+function renderError(){
+  return '<div class="center">'+
+    '<p class="err-msg">'+_errMsg+'</p>'+
+    '<button class="btn" id="e-retry" style="max-width:200px">Erneut versuchen</button>'+
+    '<button class="btn-ghost" id="e-reset" style="max-width:200px;margin-top:8px">Einstellungen</button>'+
+  '</div>';
+}
+function bindError(){
+  document.getElementById('e-retry').onclick=boot;
+  document.getElementById('e-reset').onclick=()=>{ cfg=null; localStorage.removeItem(CFG_KEY); _status='setup'; render(); };
+}
+
+function renderMain(){
+  const now=new Date();
+  const mo=MON_F[now.getMonth()]+' '+now.getFullYear();
+  let inner=tab==='hb'?renderHB():renderOverview();
+  let sheet=showAdd?renderSheet():'';
+  return '<div class="header">'+
+    '<div><div class="header-title">Finanzplaner</div><div class="header-sub">'+mo+'</div></div>'+
+    '<button class="reload-btn" id="btn-reload" title="Neu laden">↺</button>'+
+  '</div>'+
+  '<div class="tab-content" id="tab-content">'+inner+'</div>'+
+  '<div class="bottom-nav">'+
+    '<button class="nav-btn'+(tab==='overview'?' active':'')+'" id="nav-ov">'+
+      '<svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>'+
+      '<span>Übersicht</span>'+
+    '</button>'+
+    '<button class="nav-btn'+(tab==='hb'?' active':'')+'" id="nav-hb">'+
+      '<svg viewBox="0 0 24 24"><path d="M4 6h16M4 10h16M4 14h10"/></svg>'+
+      '<span>Haushaltsbuch</span>'+
+    '</button>'+
+  '</div>'+
+  (tab==='hb'?'<button class="fab" id="btn-fab">+</button>':'')+
+  sheet;
+}
+function bindMain(){
+  document.getElementById('nav-ov').onclick=()=>{ tab='overview'; render(); };
+  document.getElementById('nav-hb').onclick=()=>{ tab='hb'; render(); };
+  document.getElementById('btn-reload')?.addEventListener('click',async()=>{
+    _status='loading'; render();
+    try{ await loadFile(); _status='ready'; }catch(e){ _status='error'; _errMsg=e.message; }
+    render();
+  });
+  if(tab==='hb'){
+    document.getElementById('btn-fab')?.addEventListener('click',()=>{ showAdd=true; render(); });
+    if(showAdd) bindSheet();
+  }
+}
+
+function renderOverview(){
+  const y=currentYear(), m=currentMonth();
+  const netto=monthVal('netto',m,y);
+  const ausg =monthVal('summe_ausgaben',m,y);
+  const saldo=netto-ausg;
+  const sparq=netto>0?Math.round(saldo/netto*100):0;
+
+  const {y:hy,m:hm}=hbCurrentPeriod();
+  const hbc=hbCalc(hy,hm);
+  const perDay=hbc.isCur&&hbc.budget>0&&hbc.remainDays>0?fmtCHF(hbc.perDay):'—';
+
+  const schuld=schuldenTotal();
+  const schuldInit=schuldenInitial()||schuld;
+  const schuldPct=schuldInit>0?Math.min(100,Math.round((1-schuld/schuldInit)*100)):0;
+
+  let h='<div class="kpi-grid">'+
+    kpi('Netto',fmtCHF(netto),null)+
+    kpi('Ausgaben',fmtCHF(ausg),null)+
+    kpi('Saldo',fmtCHF(saldo),null)+
+    kpi('Sparquote',sparq+'%','Monat')+
+  '</div>';
+
+  if(hbc.budget>0){
+    h+='<div class="section-line"></div>'+
+    '<div class="section-title">Haushaltsbuch</div>'+
+    '<div class="kpi-grid">'+
+      kpi('Verfügbar / Tag',perDay,hbc.remainDays+' Tage rest')+
+      kpi('Ausgegeben',fmtCHF(hbc.ausgaben),'von '+fmtCHF(hbc.budget))+
+    '</div>';
+  }
+
+  if(schuld>0){
+    h+='<div class="section-line"></div>'+
+    '<div class="section-title">Schulden</div>'+
+    '<div class="schuld-row"><span class="schuld-val">'+fmtCHF(schuld)+'</span><span class="schuld-sub">'+schuldPct+'% abgebaut</span></div>'+
+    '<div class="schuld-bar-wrap"><div class="schuld-bar-fill" style="width:'+schuldPct+'%"></div></div>';
+  }
+  return h;
+}
+function kpi(label,val,sub){
+  return '<div class="kpi-card"><div class="kpi-label">'+label+'</div><div class="kpi-val">'+val+'</div>'+(sub?'<div class="kpi-sub">'+sub+'</div>':'')+'</div>';
+}
+
+function renderHB(){
+  const {y:cy,m:cm}=hbCurrentPeriod();
+  const nxt=hbNextPeriod(cy,cm);
+  const cur=hbCalc(cy,cm), next=hbCalc(nxt.y,nxt.m);
+  return hbCardHtml(cy,cm,cur,true)+hbCardHtml(nxt.y,nxt.m,next,false);
+}
+function hbCardHtml(y,m,c,isCurrent){
+  let hero,heroLabel,foot;
+  if(c.isCur&&c.budget>0){
+    hero=fmtCHF(c.perDay); heroLabel='CHF / Tag · '+c.remainDays+' T. rest'; foot='Saldo '+fmtCHF(c.saldo)+' · Budget '+fmtCHF(c.budget);
+  }else if(c.isPast&&c.budget>0){
+    hero=fmtCHF(c.avgDay); heroLabel='Ø CHF / Tag'; foot='Saldo '+fmtCHF(c.saldo)+' · '+c.totalDays+' Tage';
+  }else if(c.budget>0){
+    hero=fmtCHF(c.budget); heroLabel='Budget'; foot=c.totalDays+' Tage geplant';
+  }else{
+    hero='—'; heroLabel=c.isCur?'kein Budget':'—'; foot=c.totalDays+' Tage';
+  }
+  const badge=c.isCur?'Laufend':c.isFuture?'Geplant':'';
+  let bar='';
+  if(isCurrent&&c.budget>0&&c.totalDays>0){
+    const sp=Math.min(100,c.pct).toFixed(1), tp=Math.min(100,c.dayUsed/c.totalDays*100).toFixed(1);
+    bar='<div class="hb-bar-wrap"><div class="hb-bar-fill" style="width:'+sp+'%"></div><div class="hb-bar-tick" style="left:'+tp+'%"></div></div>'+
+        '<div class="hb-bar-info"><span>'+fmtCHF(c.ausgaben)+' ausgegeben</span><span>Tag '+c.dayUsed+' / '+c.totalDays+'</span></div>';
+  }else{
+    bar='<div class="hb-bar-wrap"><div class="hb-bar-fill" style="width:'+c.pct.toFixed(1)+'%"></div></div>';
+  }
+  return '<div class="hb-card'+(isCurrent?' current':'')+'">'+
+    '<div class="hb-card-head"><span class="hb-card-period">'+c.label+' '+y+'</span><span class="hb-card-badge'+(isCurrent?' hb-card-current':'')+'">'+badge+'</span></div>'+
+    '<div class="hb-hero">'+hero+'</div>'+
+    '<div class="hb-hero-label">'+heroLabel+'</div>'+
+    bar+
+    '<div class="hb-foot">'+foot+'</div>'+
+  '</div>';
+}
+
+function renderSheet(){
+  const cats=hbCategories();
+  return '<div class="sheet-overlay" id="sheet-overlay"><div class="sheet" id="sheet">'+
+    '<div class="sheet-handle"></div>'+
+    '<div class="sheet-title">Neue Buchung</div>'+
+    '<input class="amount-input" id="s-amt" type="number" inputmode="decimal" placeholder="0.00" value="'+addForm.amount+'">'+
+    '<div class="type-toggle">'+
+      '<button class="type-btn'+(addForm.type==='out'?' active':'')+'" id="t-out">Ausgabe</button>'+
+      '<button class="type-btn'+(addForm.type==='in'?' active':'')+'" id="t-in">Einnahme</button>'+
+    '</div>'+
+    '<div class="cat-grid">'+(cats.map(c=>'<button class="cat-btn'+(addForm.cat===c.id?' active':'')+'" data-cat="'+c.id+'">'+c.label+'</button>').join(''))+'</div>'+
+    '<input class="desc-input" id="s-desc" placeholder="Beschreibung (optional)" value="'+addForm.desc+'">'+
+    '<div class="sheet-actions"><button class="sheet-cancel" id="s-cancel">Abbrechen</button><button class="sheet-save" id="s-save">Speichern</button></div>'+
+  '</div></div>';
+}
+function bindSheet(){
+  document.getElementById('s-amt')?.addEventListener('input',e=>{ addForm.amount=e.target.value; });
+  document.getElementById('s-desc')?.addEventListener('input',e=>{ addForm.desc=e.target.value; });
+  document.getElementById('t-out')?.addEventListener('click',()=>{ addForm.type='out'; render(); });
+  document.getElementById('t-in')?.addEventListener('click',()=>{ addForm.type='in'; render(); });
+  document.querySelectorAll('.cat-btn').forEach(btn=>{
+    btn.addEventListener('click',()=>{ addForm.cat=btn.dataset.cat; render(); });
+  });
+  document.getElementById('s-cancel')?.addEventListener('click',()=>{ showAdd=false; addForm={amount:'',type:'out',cat:'',desc:''}; render(); });
+  document.getElementById('s-save')?.addEventListener('click',addEntry);
+}
+
+// ── Boot ─────────────────────────────────────────────────
+async function boot(){
+  _status='loading'; render();
+  if(!cfg){ _status='setup'; render(); return; }
+  const ok=await initMsal();
+  if(!ok){ _status='error'; _errMsg='MSAL konnte nicht initialisiert werden. Client ID prüfen.'; render(); return; }
+  try{
+    token=await getToken();
+    if(!token) throw new Error('Anmeldung fehlgeschlagen.');
+    await loadFile();
+    _status='ready';
+  }catch(e){
+    _status='error'; _errMsg=e.message;
+  }
+  render();
+}
+
+cfg=loadCfg();
+boot();
+</script>
+</body>
+</html>
