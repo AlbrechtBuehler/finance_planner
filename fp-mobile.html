@@ -205,7 +205,7 @@ const GRAPH='https://graph.microsoft.com/v1.0';
 const SCOPE='https://graph.microsoft.com/Files.ReadWrite offline_access';
 
 let cfg=null, token=null, payload=null;
-let tab='home', showAdd=false, saving=false;
+let tab='home', showAdd=false, saving=false, schuldenYear=new Date().getFullYear();
 let addForm={amount:'',type:'out',cat:'',desc:''};
 let _status='init', _errMsg='';
 
@@ -696,100 +696,154 @@ function esc(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').
 
 // ── Tab: Schulden ─────────────────────────────────────────
 function renderSchulden(){
-  const y=new Date().getFullYear();
-  const curM=new Date().getMonth();
-  const structure=payload?.structure||[];
+  const now=new Date();
+  const y=schuldenYear;
   const data=payload?.data||{};
+  const structure=payload?.structure||[];
   const debtCats=['verbind','schuld_estv','schuld_priv','schuld_firm'];
+  const YEARS=Object.keys(data).map(Number).filter(n=>n>2000).sort();
+  const MON_S=['Jan','Feb','Mär','Apr','Mai','Jun','Jul','Aug','Sep','Okt','Nov','Dez'];
+  const isCurYear=y===now.getFullYear();
+  const ytdThrough=isCurYear?now.getMonth():11;
 
-  // Alle Schuld-Positionen aus Budgettabelle
+  // ── Helper functions (same logic as desktop) ──
+  function totalEverPaid(id){
+    return YEARS.reduce((s,yr)=>{
+      const d=data[yr]?.[id]; if(!d) return s;
+      return s+(d.months||[]).reduce((a,v)=>a+v,0);
+    },0);
+  }
+  function originalDebt(id){
+    for(const yr of YEARS){const d=data[yr]?.[id];if(d&&(d.ansatz||0)>0)return d.ansatz;}
+    return 0;
+  }
+  function restschuld(id){
+    const d=data[y]?.[id]; if(!d) return 0;
+    let paid=0; for(let m=0;m<=ytdThrough;m++) paid+=(d.months||[])[m]||0;
+    return Math.max(0,(d.ansatz||0)-paid);
+  }
+  function avgMonat(id){
+    const d=data[y]?.[id]; if(!d) return 0;
+    let s=0; for(let m=0;m<=ytdThrough;m++) s+=(d.months||[])[m]||0;
+    return ytdThrough>=0?s/(ytdThrough+1):0;
+  }
+  function prognose(id){
+    const rest=restschuld(id); if(rest<=0) return null;
+    const avg=avgMonat(id); if(avg<=0) return null;
+    const months=Math.ceil(rest/avg);
+    const d=new Date(now.getFullYear(),now.getMonth()+months,1);
+    return {months,yr:d.getFullYear(),m:d.getMonth()};
+  }
+
+  // ── Totals from schuld_gesamt ──
+  const D=data[y]||{};
+  let paidYTD=0;
+  for(let m=0;m<=ytdThrough;m++) paidYTD+=(D['schuld_gesamt']?.months||[])[m]||0;
+  const totalAnsatz=D['schuld_gesamt']?.ansatz||0;
+  const restGesamt=Math.max(0,totalAnsatz-paidYTD);
+  const avgGesamt=ytdThrough>=0?paidYTD/(ytdThrough+1):0;
+  const pctDone=totalAnsatz>0?Math.min(100,paidYTD/totalAnsatz*100):0;
+
+  // ── Schuldenfrei: same breakeven logic as desktop ──
+  const verbind=structure.find(c=>c.id==='verbind');
+  const dids=(verbind?.subcats||[]).flatMap(sc=>(sc.items||[]).map(it=>it.id));
+  let breakEvenLabel='—';
+  if(dids.length>0){
+    let lastDebtYr=0,lastDebtM=-1;
+    for(const yr of YEARS){
+      for(let m=0;m<12;m++){
+        let owing=false;
+        for(const id of dids){
+          const dd=data[yr]?.[id]; if(!dd) continue;
+          let paid=0; for(let pm=0;pm<=m;pm++) paid+=(dd.months||[])[pm]||0;
+          if((dd.ansatz||0)-paid>0.5){owing=true;break;}
+        }
+        if(owing){lastDebtYr=yr;lastDebtM=m;}
+      }
+    }
+    if(lastDebtYr>0){
+      if(lastDebtM<11) breakEvenLabel=MON_S[lastDebtM+1]+' '+lastDebtYr;
+      else breakEvenLabel='Jan '+(lastDebtYr+1);
+    } else breakEvenLabel='Schuldenfrei';
+  }
+
+  // ── Collect creditor items ──
   const items=[];
-  structure.forEach(cat=>{
-    if(!debtCats.includes(cat.id)) return;
-    (cat.subcats||[]).forEach(sc=>{
-      (sc.items||[]).forEach(it=>{
-        const current=data[y]?.[it.id]?.ansatz||0;
-        const prev=data[y-1]?.[it.id]?.ansatz||0;
-        const months=data[y]?.[it.id]?.months||[];
-        if(current>0||prev>0) items.push({
-          id:it.id, label:it.label, group:cat.label,
-          current, prev, months
-        });
-      });
+  (verbind?.subcats||[]).forEach(sc=>{
+    (sc.items||[]).forEach(it=>{
+      const d=D[it.id];
+      if(!d||(!(d.ansatz>0)&&!(d.months||[]).some(v=>v>0))) return;
+      const orig=originalDebt(it.id);
+      const rest=restschuld(it.id);
+      const ever=totalEverPaid(it.id);
+      const prog=prognose(it.id);
+      const pct=orig>0?Math.min(100,ever/orig*100):0;
+      let paidThis=0; for(let m=0;m<=ytdThrough;m++) paidThis+=(d.months||[])[m]||0;
+      items.push({id:it.id,label:it.label,rest,orig,ever,pct,prog,paidThis,group:sc.label});
     });
   });
 
-  // Totals direkt aus Budgettabelle
-  const totalCurrent=items.reduce((s,i)=>s+i.current,0);
-  const totalPrev=items.reduce((s,i)=>s+i.prev,0)||totalCurrent;
-  const totalTilgt=Math.max(0,totalPrev-totalCurrent);
-  const pct=totalPrev>0?Math.min(100,totalTilgt/totalPrev*100):0;
+  // ── Quick Win ──
+  const quickWin=items.filter(i=>i.rest>0.5).sort((a,b)=>a.rest-b.rest)[0];
 
-  // Getilgt YTD = Summe der Monatsraten Jan–heute aus Budgettabelle
-  const tilgtYTD=items.reduce((s,i)=>s+i.months.slice(0,curM+1).reduce((a,b)=>a+b,0),0);
-
-  // Ø Rate = Monatsdurchschnitt YTD
-  const avgMonthly=curM>=0?Math.round(tilgtYTD/(curM+1)):0;
-
-  // Schuldenfrei = erstes Jahr wo alle Positionen ansatz=0
-  let doneYear=null;
-  for(let yr=y;yr<=y+15;yr++){
-    const hasDebt=items.some(i=>(data[yr]?.[i.id]?.ansatz||0)>0);
-    if(!hasDebt){doneYear=yr;break;}
-  }
-
-  // Quick Win = kleinste laufende Schuld
-  const quickWin=items.filter(i=>i.current>0).sort((a,b)=>a.current-b.current)[0];
-  const quickWinMonths=quickWin&&avgMonthly>0?Math.ceil(quickWin.current/avgMonthly):null;
+  // ── Year switcher ──
+  const debtYears=YEARS.filter(yr=>(data[yr]?.['schuld_gesamt']?.ansatz||0)>0
+    ||(data[yr]?.['schuld_gesamt']?.months||[]).some(v=>v>0));
 
   let h='';
 
-  // Hero Card
+  // Year switcher
+  h+='<div style="display:flex;gap:0;padding:8px 12px 4px;overflow-x:auto">';
+  debtYears.forEach(yr=>{
+    const on=yr===y;
+    h+='<button onclick="schuldenYear='+yr+';render()" style="flex-shrink:0;background:'+(on?'rgba(250,250,247,.12)':'none')+';border:1px solid rgba(250,250,247,'+(on?'.4':'.18')+');border-left:'+(yr===debtYears[0]?'1px':'none')+' solid rgba(250,250,247,'+(on?'.4':'.18')+');color:'+(on?'#FAFAF7':'rgba(250,250,247,.4)')+';font-family:inherit;font-size:11px;font-weight:'+(on?'700':'400')+';padding:5px 14px;cursor:pointer">'+yr+'</button>';
+  });
+  h+='</div>';
+
+  // Hero card
   h+='<div class="kpi-card">';
-  h+='<div class="kpi-label">Aktueller Schuldenstand</div>';
-  h+='<div class="kpi-val">'+fmtC(totalCurrent)+'</div>';
-  h+='<div class="kpi-sub">von urspr. '+fmtC(totalPrev)+'</div>';
-  h+='<div class="hb-bar-wrap" style="margin:10px 0 4px"><div class="hb-bar-fill" style="width:'+pct.toFixed(1)+'%"></div></div>';
-  h+='<div style="display:flex;justify-content:space-between;font-size:9px;color:var(--muted);font-variant-numeric:tabular-nums">';
-  h+='<span>'+pct.toFixed(0)+'% abgebaut</span><span>'+fmtC(totalTilgt)+' getilgt</span></div>';
+  h+='<div class="kpi-label">Anfangsstand '+y+'</div>';
+  h+='<div class="kpi-val">'+fmtC(totalAnsatz)+'</div>';
+  h+='<div class="kpi-sub" style="margin-bottom:10px">Restschuld: '+fmtC(restGesamt)+'</div>';
+  h+='<div class="hb-bar-wrap" style="margin:0 0 4px"><div class="hb-bar-fill" style="width:'+pctDone.toFixed(1)+'%"></div></div>';
+  h+='<div style="display:flex;justify-content:space-between;font-size:9px;color:var(--muted);font-variant-numeric:tabular-nums"><span>'+pctDone.toFixed(0)+'% getilgt</span><span>'+fmtC(paidYTD)+' gezahlt</span></div>';
   h+='</div>';
 
   // 4 KPIs
   h+='<div class="stat-grid">';
-  h+='<div class="stat-cell"><div class="stat-val">'+fmt(tilgtYTD)+'</div><div class="stat-lbl">Getilgt '+y+'</div></div>';
-  h+='<div class="stat-cell"><div class="stat-val">'+fmt(avgMonthly)+'</div><div class="stat-lbl">Ø Rate / Monat</div></div>';
-  h+='<div class="stat-cell"><div class="stat-val">'+( doneYear||'—')+'</div><div class="stat-lbl">Schuldenfrei</div></div>';
-  h+='<div class="stat-cell">';
+  h+='<div class="stat-cell"><div class="stat-val">'+fmt(paidYTD)+'</div><div class="stat-lbl">Gezahlt YTD</div></div>';
+  h+='<div class="stat-cell"><div class="stat-val">'+fmt(Math.round(avgGesamt))+'</div><div class="stat-lbl">Ø / Monat</div></div>';
+  h+='<div class="stat-cell"><div class="stat-val">'+breakEvenLabel+'</div><div class="stat-lbl">Schuldenfrei ab</div></div>';
   if(quickWin){
-    h+='<div class="stat-val" style="font-size:13px;line-height:1.3">'+esc(quickWin.label)+'</div>';
-    h+='<div class="stat-lbl">'+fmtC(quickWin.current)+(quickWinMonths?' · '+quickWinMonths+' Mt':'')+'</div>';
+    const qm=quickWin.prog?quickWin.prog.months:null;
+    h+='<div class="stat-cell"><div class="stat-val" style="font-size:13px">'+esc(quickWin.label)+'</div><div class="stat-lbl">'+fmtC(quickWin.rest)+(qm?' · '+qm+' Mt':'')+'</div></div>';
   } else {
-    h+='<div class="stat-val">—</div><div class="stat-lbl">Quick Win</div>';
+    h+='<div class="stat-cell"><div class="stat-val">—</div><div class="stat-lbl">Quick Win</div></div>';
   }
-  h+='</div></div>';
+  h+='</div>';
 
   // Gläubiger collapsable
-  items.sort((a,b)=>b.current-a.current).forEach((item,i)=>{
-    const pctItem=item.prev>0?Math.min(100,(item.prev-item.current)/item.prev*100):0;
+  items.sort((a,b)=>b.rest-a.rest).forEach((item,i)=>{
     const sid='debt-'+i;
+    const progLabel=item.rest<=0.5?'Abbezahlt':item.prog?MON_S[item.prog.m]+' '+item.prog.yr:'—';
     h+='<div class="inv-sec-wrap" id="'+sid+'">';
     h+='<div class="inv-sec-hdr" onclick="toggleSec(\''+sid+'\')" style="cursor:pointer">';
-    h+='<span class="inv-sec-t">'+esc(item.label)+'</span>';
-    h+='<div style="display:flex;align-items:center;gap:6px"><span class="inv-sec-v">'+fmtC(item.current)+'</span><span id="chev-'+sid+'" style="font-size:9px;color:rgba(255,255,255,.3)">▼</span></div>';
+    h+='<span class="inv-sec-t">'+esc(item.label)+(item.rest<=0.5?' ✓':'')+'</span>';
+    h+='<div style="display:flex;align-items:center;gap:6px"><span class="inv-sec-v">'+fmtC(item.rest)+'</span><span id="chev-'+sid+'" style="font-size:9px;color:rgba(255,255,255,.3)">▼</span></div>';
     h+='</div>';
     h+='<div id="body-'+sid+'" style="display:none;border-top:1px solid rgba(255,255,255,.08);padding:10px 13px">';
-    h+='<div style="font-size:10px;color:rgba(255,255,255,.4);margin-bottom:8px">'+esc(item.group)+'</div>';
-    h+='<div style="display:flex;justify-content:space-between;font-size:11px;margin-bottom:3px"><span style="color:rgba(255,255,255,.4)">Stand '+( y-1)+'</span><span style="font-variant-numeric:tabular-nums">'+fmtC(item.prev)+'</span></div>';
-    h+='<div style="display:flex;justify-content:space-between;font-size:11px;margin-bottom:8px"><span style="color:rgba(255,255,255,.4)">Getilgt</span><span style="font-variant-numeric:tabular-nums">'+fmtC(Math.max(0,item.prev-item.current))+'</span></div>';
-    h+='<div class="hb-bar-wrap" style="margin:4px 0 3px"><div class="hb-bar-fill" style="width:'+pctItem.toFixed(1)+'%"></div></div>';
-    h+='<div style="text-align:right;font-size:9px;color:rgba(255,255,255,.3);">'+pctItem.toFixed(0)+'% abgebaut</div>';
+    h+='<div style="font-size:10px;color:rgba(255,255,255,.35);margin-bottom:8px">'+esc(item.group)+'</div>';
+    h+='<div style="display:flex;justify-content:space-between;font-size:11px;margin-bottom:3px"><span style="color:rgba(255,255,255,.4)">Ursprung</span><span style="font-variant-numeric:tabular-nums">'+fmtC(item.orig)+'</span></div>';
+    h+='<div style="display:flex;justify-content:space-between;font-size:11px;margin-bottom:3px"><span style="color:rgba(255,255,255,.4)">Gesamt gezahlt</span><span style="font-variant-numeric:tabular-nums">'+fmtC(item.ever)+'</span></div>';
+    h+='<div style="display:flex;justify-content:space-between;font-size:11px;margin-bottom:8px"><span style="color:rgba(255,255,255,.4)">Prognose</span><span>'+progLabel+'</span></div>';
+    h+='<div class="hb-bar-wrap" style="margin:0 0 3px"><div class="hb-bar-fill" style="width:'+item.pct.toFixed(1)+'%"></div></div>';
+    h+='<div style="text-align:right;font-size:9px;color:rgba(255,255,255,.3)">'+item.pct.toFixed(0)+'% getilgt</div>';
     h+='</div></div>';
   });
 
   h+='<div style="height:16px"></div>';
   return h;
 }
-
 
 function toggleSec(id){
   const body=document.getElementById('body-'+id);
