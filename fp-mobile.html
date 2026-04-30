@@ -33,8 +33,8 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:-apple-
 .header-sub{font-size:11px;color:var(--muted)}
 .reload-btn{background:none;border:none;color:var(--muted);cursor:pointer;font-size:18px;padding:2px 6px}
 .tab-content{flex:1;overflow-y:auto;padding:12px 16px;-webkit-overflow-scrolling:touch}
-.home-cards{display:flex;flex-direction:column;gap:8px;height:calc(100vh - 140px)}
-.home-cards>*{flex:1;margin-bottom:0 !important}
+.home-cards{display:flex;flex-direction:column;gap:8px;height:calc(100svh - 148px);min-height:0}
+.home-cards>*{flex:1;margin-bottom:0 !important;min-height:0;overflow:hidden}
 .bottom-nav{display:flex;border-top:1px solid var(--border);padding-bottom:var(--safe-bot);background:var(--bg)}
 .nav-btn{flex:1;display:flex;flex-direction:column;align-items:center;gap:4px;padding:11px 8px;background:none;border:none;cursor:pointer;font-family:inherit}
 .nav-btn svg{width:20px;height:20px;stroke:var(--muted);fill:none;stroke-width:1.5;stroke-linecap:round;stroke-linejoin:round}
@@ -68,11 +68,11 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:-apple-
 .schuld-val{font-size:18px;font-weight:600;font-variant-numeric:tabular-nums}
 .schuld-sub{font-size:11px;color:var(--muted)}
 .fab{position:fixed;bottom:calc(var(--safe-bot) + 68px);right:20px;width:52px;height:52px;background:var(--accent);color:#000;border:none;border-radius:50%;cursor:pointer;font-size:24px;font-weight:300;display:flex;align-items:center;justify-content:center;z-index:50;line-height:1}
-.modal-overlay{position:fixed;top:0;right:0;bottom:0;left:0;background:var(--bg);z-index:200;display:flex;flex-direction:column}
+.modal-overlay{position:fixed;top:0;right:0;bottom:0;left:0;background:var(--bg);z-index:200;display:flex;flex-direction:column;overflow-y:auto}
 .modal-header{display:flex;align-items:center;justify-content:space-between;padding:calc(var(--safe-top) + 16px) 20px 16px;border-bottom:1px solid var(--border);flex-shrink:0}
 .modal-title{font-size:13px;font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:var(--muted)}
 .modal-close{background:none;border:none;color:var(--text);font-size:30px;font-weight:300;cursor:pointer;padding:0;line-height:1}
-.modal-body{flex:1;overflow-y:auto}
+.modal-body{flex:1}
 .amount-wrap{padding:24px 20px 20px;border-bottom:1px solid var(--border)}
 .amount-label{font-size:10px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);margin-bottom:10px;display:block}
 .amount-input{font-size:48px;font-weight:300;font-variant-numeric:tabular-nums;width:100%;background:none;border:none;color:var(--text);font-family:inherit;padding:0;outline:none;text-align:right;display:block}
@@ -90,7 +90,7 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:-apple-
 .m-input{width:100%;background:#0F100E;border:1px solid rgba(250,250,247,.25);color:#FAFAF7;font-family:inherit;font-size:15px;padding:13px 12px;border-radius:0;outline:none;-webkit-appearance:none;appearance:none;color-scheme:dark}
 .m-input::placeholder{color:rgba(250,250,247,.3)}
 .m-input:focus{border-color:rgba(250,250,247,.6)}
-.modal-footer{padding:16px 20px calc(var(--safe-bot) + 16px);display:flex;gap:8px;flex-shrink:0;background:var(--bg);border-top:1px solid var(--border)}
+.modal-footer{padding:20px 20px calc(var(--safe-bot) + 20px);display:flex;gap:8px}
 .modal-save{flex:1;background:var(--accent);color:#000;font-family:inherit;font-size:15px;font-weight:600;padding:14px;border:none;cursor:pointer;border-radius:0}
 .modal-cancel{flex:1;background:none;border:1px solid var(--border-strong);color:var(--muted);font-family:inherit;font-size:15px;font-weight:600;padding:14px;cursor:pointer;border-radius:0}
 .toast{position:fixed;bottom:calc(var(--safe-bot) + 80px);left:50%;transform:translateX(-50%);background:var(--accent);color:#000;font-size:13px;font-weight:600;padding:10px 20px;z-index:200;animation:tin .1s ease,tout .3s ease 1.7s forwards;white-space:nowrap}
@@ -757,30 +757,28 @@ function openAddModal(){
       '<span class="modal-title">Neue Buchung</span>'+
       '<button class="modal-close" id="m-close">&#xD7;</button>'+
     '</div>'+
-    '<div class="modal-body">'+
-      '<div class="amount-wrap">'+
-        '<span class="amount-label">Betrag (CHF)</span>'+
-        '<input class="amount-input" id="m-amt" type="number" inputmode="decimal" placeholder="0.00">'+
-      '</div>'+
-      '<div class="type-toggle">'+
-        '<button class="type-btn active" id="m-out">Ausgabe</button>'+
-        '<button class="type-btn" id="m-in">Einnahme</button>'+
-      '</div>'+
-      '<div class="m-field">'+
-        '<span class="cat-label">Kategorie</span>'+
-        '<select id="m-cat" class="m-input">'+
-          '<option value="">— Keine Kategorie —</option>'+
-          cats.map(c=>'<option value="'+c.id+'">'+c.label+'</option>').join('')+
-        '</select>'+
-      '</div>'+
-      '<div class="m-field">'+
-        '<span class="cat-label">Beschreibung</span>'+
-        '<input id="m-desc" class="m-input" placeholder="Beschreibung">'+
-      '</div>'+
-      '<div class="m-field">'+
-        '<span class="cat-label">Datum</span>'+
-        '<input id="m-date" class="m-input" type="date" value="'+new Date().toISOString().slice(0,10)+'">'+
-      '</div>'+
+    '<div class="amount-wrap">'+
+      '<span class="amount-label">Betrag (CHF)</span>'+
+      '<input class="amount-input" id="m-amt" type="number" inputmode="decimal" placeholder="0.00">'+
+    '</div>'+
+    '<div class="type-toggle">'+
+      '<button class="type-btn active" id="m-out">Ausgabe</button>'+
+      '<button class="type-btn" id="m-in">Einnahme</button>'+
+    '</div>'+
+    '<div class="m-field">'+
+      '<span class="cat-label">Kategorie</span>'+
+      '<select id="m-cat" class="m-input">'+
+        '<option value="">— Keine Kategorie —</option>'+
+        cats.map(c=>'<option value="'+c.id+'">'+c.label+'</option>').join('')+
+      '</select>'+
+    '</div>'+
+    '<div class="m-field">'+
+      '<span class="cat-label">Beschreibung</span>'+
+      '<input id="m-desc" class="m-input" placeholder="Beschreibung">'+
+    '</div>'+
+    '<div class="m-field">'+
+      '<span class="cat-label">Datum</span>'+
+      '<input id="m-date" class="m-input" type="date" value="'+new Date().toISOString().slice(0,10)+'">'+
     '</div>'+
     '<div class="modal-footer">'+
       '<button class="modal-cancel" id="m-can">Abbrechen</button>'+
