@@ -33,6 +33,12 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:-apple-
 .header-sub{font-size:11px;color:var(--muted)}
 .reload-btn{background:none;border:none;color:var(--muted);cursor:pointer;font-size:18px;padding:2px 6px}
 .tab-content{flex:1;overflow-y:auto;padding:12px 16px;-webkit-overflow-scrolling:touch}
+.home-cards{display:flex;flex-direction:column;gap:0;height:calc(100% - 8px)}
+.home-cards .kpi-card,.home-cards .hb-card,.home-cards .hb-add-card{flex:1;margin-bottom:0;border-bottom:none}
+.home-cards>*:not(:last-child){border-bottom:none}
+.home-cards>*{border-top:none}
+.home-cards>*:first-child{border-top:1px solid var(--border-strong)}
+.home-cards>*{border:1px solid var(--border-strong);margin:0}
 .bottom-nav{display:flex;border-top:1px solid var(--border);padding-bottom:var(--safe-bot);background:var(--bg)}
 .nav-btn{flex:1;display:flex;flex-direction:column;align-items:center;gap:4px;padding:11px 8px;background:none;border:none;cursor:pointer;font-family:inherit}
 .nav-btn svg{width:20px;height:20px;stroke:var(--muted);fill:none;stroke-width:1.5;stroke-linecap:round;stroke-linejoin:round}
@@ -187,8 +193,8 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:-apple-
 </head>
 <body>
 <div id="app"></div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 <script>
-'use strict';
 const CFG_KEY='fp_mobile_cfg_v2';
 const MON_S=['Jan','Feb','Mrz','Apr','Mai','Jun','Jul','Aug','Sep','Okt','Nov','Dez'];
 const MON_F=['Januar','Februar','März','April','Mai','Juni','Juli','August','September','Oktober','November','Dezember'];
@@ -411,7 +417,7 @@ function bindMain(){
     try{await loadFile();_status='ready';}catch(e){_status='error';_errMsg=e.message;}
     render();
   });
-  document.getElementById('btn-add-card')?.addEventListener('click',openAddModal);
+  // add card uses onclick directly
 }
 
 // ── Tab: Home ─────────────────────────────────────────────
@@ -422,6 +428,7 @@ function renderHome(){
   const todayAmt=hbEntries(hy,hm).filter(e=>e.type==='out'&&e.date===todayISO).reduce((s,e)=>s+(e.amount||0),0);
   const todayLast=hbEntries(hy,hm).filter(e=>e.type==='out'&&e.date===todayISO).slice(-1)[0];
   let h='';
+  h+='<div class="home-cards">';
   // KPI 1: Verfügbar diesen Monat
   h+='<div class="kpi-card"><div class="kpi-label">Verfügbar diesen Monat</div><div class="kpi-val">'+(hbc.budget>0?fmtC(hbc.saldo):'—')+'</div>';
   if(hbc.budget>0) h+='<div class="kpi-sub">Budget '+fmtC(hbc.budget)+' · '+hbc.remainDays+' Tage rest</div>';
@@ -437,7 +444,8 @@ function renderHome(){
   // Budget-Card (exactly like screenshot)
   h+=budgetCard(hy,hm,hbc);
   // Add Card (full width, dark, +)
-  h+='<div class="hb-add-card" id="btn-add-card"><span class="hb-add-ico">+</span></div>';
+  h+='<div class="hb-add-card" onclick="openAddModal()"><span class="hb-add-ico">+</span></div>';
+  h+='</div>';
   return h;
 }
 
@@ -533,8 +541,21 @@ function renderAusgaben(){
     h+='</svg></div>';
   }
 
-  // Category cards
-  h+='<div style="margin-top:4px">';
+  // 6-month bar chart
+  const barId='ausgBar'+Date.now();
+  const last6=[];
+  for(let i=5;i>=0;i--){
+    const bm=((curM-i)+12)%12;
+    const by=curM-i<0?curY-1:curY;
+    const amt=hbSum(by,bm,'out')+getInvoices().filter(iv=>iv.status==='bezahlt'&&(iv.budgetMonat??0)===bm&&(iv.budgetJahr??by)===by).reduce((s,iv)=>s+(iv.betrag||0),0);
+    last6.push({m:MON_S[bm],v:Math.round(amt)});
+  }
+  h+='<div style="background:#0F100E;border:1px solid rgba(250,250,247,.22);padding:12px;margin-bottom:8px">';
+  h+='<div style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:rgba(255,255,255,.3);margin-bottom:10px">Verlauf 6 Monate</div>';
+  h+='<div style="position:relative;height:100px"><canvas id="'+barId+'" role="img" aria-label="Ausgaben 6 Monate"></canvas></div>';
+  h+='</div>';
+
+  // Category cards\n  h+='<div style="margin-top:4px">';
   if(groups.length){
     groups.forEach((g,gi)=>{
       const gc=cats.filter(c=>c.groupId===g.id);
@@ -560,6 +581,28 @@ function renderAusgaben(){
   }
   h+='</div>';
   h+='<div style="height:16px"></div>';
+
+  // Init bar chart after DOM
+  setTimeout(()=>{
+    const el=document.getElementById(barId);
+    if(!el||!window.Chart) return;
+    new window.Chart(el,{
+      type:'bar',
+      data:{
+        labels:last6.map(x=>x.m),
+        datasets:[{data:last6.map(x=>x.v),backgroundColor:'rgba(250,250,247,.2)',borderColor:'rgba(250,250,247,.6)',borderWidth:1,borderRadius:0}]
+      },
+      options:{
+        responsive:true,maintainAspectRatio:false,
+        plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>'CHF '+c.raw.toLocaleString('de-CH')}}},
+        scales:{
+          x:{ticks:{color:'rgba(250,250,247,.35)',font:{size:9}},grid:{display:false},border:{color:'transparent'}},
+          y:{ticks:{color:'rgba(250,250,247,.35)',font:{size:9},callback:v=>v>0?Math.round(v/1000)+'k':'0'},grid:{color:'rgba(250,250,247,.06)'},border:{color:'transparent'}}
+        }
+      }
+    });
+  },100);
+
   return h;
 }
 
@@ -701,6 +744,72 @@ function toggleSec(id){
   const open=body.style.display==='none';
   body.style.display=open?'block':'none';
   chev.style.transform=open?'rotate(180deg)':'';
+}
+
+// ── openAddModal — Fullscreen ────────────────────────────
+function openAddModal(){
+  addForm={amount:'',type:'out',cat:'',desc:'',date:new Date().toISOString().slice(0,10)};
+  const cats=hbCats();
+  const el=document.createElement('div');
+  el.className='modal-overlay'; el.id='add-modal';
+  el.innerHTML=
+    '<div class="modal-header">'+
+      '<span class="modal-title">Neue Buchung</span>'+
+      '<button class="modal-close" id="m-close">&#xD7;</button>'+
+    '</div>'+
+    '<div class="modal-body">'+
+      '<div class="amount-wrap">'+
+        '<span class="amount-label">Betrag (CHF)</span>'+
+        '<input class="amount-input" id="m-amt" type="number" inputmode="decimal" placeholder="0.00">'+
+      '</div>'+
+      '<div class="type-toggle">'+
+        '<button class="type-btn active" id="m-out">Ausgabe</button>'+
+        '<button class="type-btn" id="m-in">Einnahme</button>'+
+      '</div>'+
+      '<div style="padding:16px 20px 0">'+
+        '<span class="cat-label" style="padding:0 0 8px">Kategorie</span>'+
+        '<select id="m-cat" style="width:100%;background:#0F100E;border:1px solid rgba(250,250,247,.25);color:#FAFAF7;font-family:inherit;font-size:14px;padding:12px;border-radius:0;outline:none;-webkit-appearance:none;appearance:none">'+
+          '<option value="">— Keine Kategorie —</option>'+
+          cats.map(c=>'<option value="'+c.id+'">'+c.label+'</option>').join('')+
+        '</select>'+
+      '</div>'+
+      '<div style="padding:14px 20px 0">'+
+        '<span class="cat-label" style="padding:0 0 8px">Beschreibung</span>'+
+        '<input class="desc-input" id="m-desc" placeholder="Beschreibung">'+
+      '</div>'+
+      '<div style="padding:14px 20px 0">'+
+        '<span class="cat-label" style="padding:0 0 8px">Datum</span>'+
+        '<input style="width:100%;background:#0F100E;border:1px solid rgba(250,250,247,.25);color:#FAFAF7;font-family:inherit;font-size:14px;padding:12px;border-radius:0;outline:none;color-scheme:dark" id="m-date" type="date" value="'+new Date().toISOString().slice(0,10)+'">'+
+      '</div>'+
+    '</div>'+
+    '<div class="modal-footer">'+
+      '<button class="modal-cancel" id="m-can">Abbrechen</button>'+
+      '<button class="modal-save" id="m-sav">Speichern</button>'+
+    '</div>';
+  document.body.appendChild(el);
+  setTimeout(()=>document.getElementById('m-amt')?.focus(),80);
+  function closeModal(){ el.remove(); }
+  document.getElementById('m-close').onclick=closeModal;
+  document.getElementById('m-can').onclick=closeModal;
+  document.getElementById('m-out').addEventListener('click',()=>{
+    addForm.type='out';
+    document.getElementById('m-out').classList.add('active');
+    document.getElementById('m-in').classList.remove('active');
+  });
+  document.getElementById('m-in').addEventListener('click',()=>{
+    addForm.type='in';
+    document.getElementById('m-in').classList.add('active');
+    document.getElementById('m-out').classList.remove('active');
+  });
+  document.getElementById('m-sav').addEventListener('click',async()=>{
+    addForm.amount=document.getElementById('m-amt').value;
+    addForm.cat=document.getElementById('m-cat').value;
+    addForm.desc=document.getElementById('m-desc').value;
+    addForm.date=document.getElementById('m-date').value||new Date().toISOString().slice(0,10);
+    if(!addForm.amount){showToast('Betrag eingeben');return;}
+    closeModal();
+    await addEntry();
+  });
 }
 
 // ── Boot ──────────────────────────────────────────────────
