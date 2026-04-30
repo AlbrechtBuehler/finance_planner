@@ -89,6 +89,64 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:-apple-
 .toast{position:fixed;bottom:calc(var(--safe-bot) + 80px);left:50%;transform:translateX(-50%);background:var(--accent);color:#000;font-size:13px;font-weight:600;padding:10px 20px;z-index:200;animation:tin .1s ease,tout .3s ease 1.7s forwards;white-space:nowrap}
 @keyframes tin{from{opacity:0;transform:translateX(-50%) translateY(8px)}to{opacity:1;transform:translateX(-50%)}}
 @keyframes tout{to{opacity:0}}
+
+/* ── NEW: Home Tab ── */
+.home-hero{padding:20px 16px 14px;border-bottom:1px solid var(--border)}
+.home-hero-val{font-size:44px;font-weight:700;font-variant-numeric:tabular-nums;letter-spacing:-2px;line-height:1}
+.home-hero-label{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.07em;margin-top:4px}
+.home-kpi-row{display:grid;grid-template-columns:1fr 1fr;gap:1px;background:var(--border);border-bottom:1px solid var(--border)}
+.home-kpi{background:var(--bg);padding:14px 16px}
+.home-kpi-val{font-size:20px;font-weight:600;font-variant-numeric:tabular-nums;letter-spacing:-.02em}
+.home-kpi-lbl{font-size:10px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin-top:3px}
+.add-btn{width:calc(100% - 32px);margin:16px;background:var(--accent);color:#000;border:none;font-family:inherit;font-size:15px;font-weight:600;padding:16px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px}
+.add-btn:active{opacity:.8}
+.sec-hdr{display:flex;align-items:center;justify-content:space-between;padding:16px 16px 8px}
+.sec-ttl{font-size:10px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted)}
+.sec-val{font-size:12px;font-variant-numeric:tabular-nums;color:var(--muted)}
+.sec-warn{color:var(--text);font-weight:600}
+.inv-row{display:flex;align-items:center;justify-content:space-between;padding:12px 16px;border-bottom:1px solid var(--border)}
+.inv-row:last-child{border-bottom:none}
+.inv-name{font-size:14px;font-weight:500}
+.inv-meta{font-size:11px;color:var(--muted);margin-top:2px}
+.inv-right{text-align:right}
+.inv-amt{font-size:14px;font-weight:600;font-variant-numeric:tabular-nums}
+.inv-status{font-size:10px;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);margin-top:2px}
+.inv-status.warn{color:var(--text)}
+.inv-card{background:var(--surface);margin:0 16px 8px}
+.inv-pay-btn{background:none;border:1px solid var(--border-strong);color:var(--muted);font-family:inherit;font-size:11px;padding:5px 10px;cursor:pointer;margin-top:6px}
+.inv-pay-btn:active{background:var(--accent);color:#000;border-color:var(--accent)}
+
+/* ── NEW: Analyse Tab ── */
+.analyse-total{padding:20px 16px 14px;border-bottom:1px solid var(--border)}
+.analyse-total-val{font-size:36px;font-weight:700;font-variant-numeric:tabular-nums;letter-spacing:-1.5px}
+.analyse-total-lbl{font-size:11px;color:var(--muted);margin-top:3px}
+.cat-row{padding:11px 16px;border-bottom:1px solid rgba(250,250,247,.06)}
+.cat-row-head{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:6px}
+.cat-row-name{font-size:13px;font-weight:500}
+.cat-row-amt{font-size:13px;font-variant-numeric:tabular-nums;font-weight:600}
+.cat-bar-wrap{height:2px;background:rgba(250,250,247,.1)}
+.cat-bar-fill{height:2px;background:var(--accent)}
+.cat-row-pct{font-size:10px;color:var(--muted);margin-top:3px}
+.donut-wrap{padding:16px;display:flex;justify-content:center}
+.source-row{display:flex;justify-content:space-between;padding:10px 16px;border-bottom:1px solid rgba(250,250,247,.06);font-size:13px}
+.source-lbl{color:var(--muted)}
+.source-val{font-variant-numeric:tabular-nums;font-weight:500}
+
+/* ── NEW: Budget Tab ── */
+.budget-month-card{background:var(--surface);border:1px solid var(--border);margin:0 16px 12px}
+.budget-month-card.active{border-left:3px solid var(--accent)}
+.bmc-head{display:flex;justify-content:space-between;align-items:baseline;padding:13px 14px 6px}
+.bmc-period{font-size:12px;font-weight:600}
+.bmc-badge{font-size:9px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted)}
+.bmc-active .bmc-badge{color:var(--text);font-weight:700}
+.bmc-hero{padding:0 14px;font-size:28px;font-weight:700;font-variant-numeric:tabular-nums;letter-spacing:-1px}
+.bmc-hero-lbl{padding:0 14px 10px;font-size:11px;color:var(--muted)}
+.bmc-bar-wrap{height:3px;background:rgba(250,250,247,.1);margin:0 14px 4px;position:relative}
+.bmc-bar-fill{height:100%;background:var(--accent)}
+.bmc-bar-tick{position:absolute;top:-3px;bottom:-3px;width:2px;background:var(--accent);opacity:.4;transform:translateX(-50%)}
+.bmc-bar-info{display:flex;justify-content:space-between;padding:0 14px;font-size:10px;color:var(--muted);font-variant-numeric:tabular-nums}
+.bmc-foot{padding:10px 14px;border-top:1px solid var(--border);font-size:11px;color:var(--muted);display:flex;justify-content:space-between}
+.bmc-foot span+span{font-variant-numeric:tabular-nums}
 </style>
 </head>
 <body>
@@ -102,7 +160,7 @@ const GRAPH='https://graph.microsoft.com/v1.0';
 const SCOPE='https://graph.microsoft.com/Files.ReadWrite offline_access';
 
 let cfg=null, token=null, payload=null;
-let tab='overview', showAdd=false, saving=false;
+let tab='home', showAdd=false, saving=false;
 let addForm={amount:'',type:'out',cat:'',desc:''};
 let _status='init', _errMsg='';
 
@@ -247,7 +305,7 @@ async function addEntry(){
   const{y,m}=hbCurPeriod(),k=hbKey(y,m);
   if(!payload.data._hb)payload.data._hb={config:{defaultDay:25},periods:{}};
   if(!payload.data._hb.periods[k])payload.data._hb.periods[k]={entries:[]};
-  payload.data._hb.periods[k].entries.push({id:Date.now().toString(36)+Math.random().toString(36).slice(2,6),type:addForm.type,amount:amt,desc:addForm.desc||addForm.cat||'',cat:addForm.cat||null,date:new Date().toISOString().slice(0,10)});
+  payload.data._hb.periods[k].entries.push({id:Date.now().toString(36)+Math.random().toString(36).slice(2,6),type:addForm.type,amount:amt,desc:addForm.desc||addForm.cat||'',cat:addForm.cat||null,date:addForm.date||new Date().toISOString().slice(0,10)});
   addForm={amount:'',type:'out',cat:'',desc:''};showAdd=false;
   await saveFile();showToast('Gespeichert');
 }
@@ -288,58 +346,330 @@ function bindError(){
   document.getElementById('e-reset').onclick=()=>{cfg=null;token=null;localStorage.clear();_status='setup';render();};
 }
 
+// ── Invoice helpers ──────────────────────────────────────
+function getInvoices(){
+  const raw=payload?.invoices||{};
+  return Object.entries(raw).map(([k,v])=>({...v,_id:k}));
+}
+function getOpenInvoices(){
+  const y=new Date().getFullYear(),m=new Date().getMonth();
+  return getInvoices().filter(i=>i.status!=='bezahlt'&&!i.wiederkehrend&&(i.budgetJahr??y)===y);
+}
+async function markPaid(invId){
+  if(!payload.invoices||!payload.invoices[invId])return;
+  payload.invoices[invId].status='bezahlt';
+  payload.invoices[invId].bezahltAm=new Date().toISOString().slice(0,10);
+  await saveFile();showToast('Als bezahlt markiert');
+}
+
+// ── Render Main Shell ────────────────────────────────────
 function renderMain(){
   const now=new Date(),mo=MON_F[now.getMonth()]+' '+now.getFullYear();
+  const tabs=[
+    {id:'home',lbl:'Home',svg:'<path d="M3 12L12 3l9 9"/><path d="M9 21V12h6v9"/>'},
+    {id:'rechnungen',lbl:'Rechnungen',svg:'<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/>'},
+    {id:'analyse',lbl:'Analyse',svg:'<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/>'},
+    {id:'budget',lbl:'Budget',svg:'<rect x="3" y="3" width="18" height="18" rx="0"/><path d="M3 9h18M9 21V9"/>'},
+  ];
+  let nav='<div class="bottom-nav">';
+  tabs.forEach(t=>{nav+='<button class="nav-btn'+(tab===t.id?' active':'')+'" id="nav-'+t.id+'"><svg viewBox="0 0 24 24">'+t.svg+'</svg><span>'+t.lbl+'</span></button>';});
+  nav+='</div>';
+  const content=tab==='home'?renderHome():tab==='rechnungen'?renderRechnungen():tab==='analyse'?renderAnalyse():renderBudget();
   return '<div class="header"><div><div class="header-title">Finanzplaner</div><div class="header-sub">'+mo+'</div></div><button class="reload-btn" id="btn-reload">↺</button></div>'+
-  '<div class="tab-content">'+( tab==='hb'?renderHB():renderOverview() )+'</div>'+
-  '<div class="bottom-nav">'+
-  '<button class="nav-btn'+(tab==='overview'?' active':'')+'" id="nav-ov"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg><span>Übersicht</span></button>'+
-  '<button class="nav-btn'+(tab==='hb'?' active':'')+'" id="nav-hb"><svg viewBox="0 0 24 24"><path d="M4 6h16M4 10h16M4 14h10"/></svg><span>Haushaltsbuch</span></button>'+
-  '</div>'+(tab==='hb'?'<button class="fab" id="btn-fab">+</button>':'')+
-  (showAdd?renderSheet():'');
+    '<div class="tab-content" id="tab-content">'+content+'</div>'+nav+
+    '<button class="fab" id="btn-fab">+</button>';
 }
 function bindMain(){
-  document.getElementById('nav-ov').onclick=()=>{tab='overview';render();};
-  document.getElementById('nav-hb').onclick=()=>{tab='hb';render();};
-  document.getElementById('btn-reload')?.addEventListener('click',async()=>{_status='loading';render();try{await loadFile();_status='ready';}catch(e){_status='error';_errMsg=e.message;}render();});
+  ['home','rechnungen','analyse','budget'].forEach(id=>{
+    document.getElementById('nav-'+id)?.addEventListener('click',()=>{tab=id;render();});
+  });
+  document.getElementById('btn-reload')?.addEventListener('click',async()=>{
+    _status='loading';render();
+    try{await loadFile();_status='ready';}catch(e){_status='error';_errMsg=e.message;}
+    render();
+  });
   document.getElementById('btn-fab')?.addEventListener('click',openAddModal);
+  // Bind swipe + pay
+  if(tab==='rechnungen') bindRechnungen();
+  document.querySelectorAll('.inv-pay-btn').forEach(b=>{
+    b.addEventListener('click',async()=>{
+      const id=b.dataset.id; if(!id)return;
+      b.textContent='…'; b.disabled=true;
+      await markPaid(id); render();
+    });
+  });
 }
 
-function renderOverview(){
-  const y=new Date().getFullYear(),m=new Date().getMonth();
-  const netto=mVal('netto',m,y),ausg=mVal('summe_ausgaben',m,y),saldo=netto-ausg,sparq=netto>0?Math.round(saldo/netto*100):0;
+// ── Tab: Home ────────────────────────────────────────────
+function renderHome(){
   const{y:hy,m:hm}=hbCurPeriod(),hbc=hbCalc(hy,hm);
-  const schuld=schuldenAktuell(),schuldI=schuldenStart(),pct=schuldI>0?Math.min(100,Math.round((1-schuld/schuldI)*100)):0;
-  let h='<div class="kpi-grid">'+kpi('Netto',fmtC(netto))+kpi('Ausgaben',fmtC(ausg))+kpi('Saldo',fmtC(saldo))+kpi('Sparquote',sparq+'%','Monat')+'</div>';
-  if(hbc.budget>0) h+='<div class="section-line"></div><div class="section-title">Haushaltsbuch</div><div class="kpi-grid">'+kpi('Verfügbar / Tag',hbc.isCur&&hbc.remainDays>0?fmtC(hbc.perDay):'—',hbc.remainDays+' Tage rest')+kpi('Ausgegeben',fmtC(hbc.ausgaben),'von '+fmtC(hbc.budget))+'</div>';
-  if(schuld>0) h+='<div class="section-line"></div><div class="section-title">Schulden</div><div class="schuld-row"><span class="schuld-val">'+fmtC(schuld)+'</span><span class="schuld-sub">'+pct+'% abgebaut</span></div><div class="schuld-bar-wrap"><div class="schuld-bar-fill" style="width:'+pct+'%"></div></div>';
+  const today=new Date();
+  // Heute ausgegeben
+  const todayISO=today.toISOString().slice(0,10);
+  const todayAmt=hbEntries(hy,hm).filter(e=>e.type==='out'&&e.date===todayISO).reduce((s,e)=>s+(e.amount||0),0);
+  // Offene Rechnungen
+  const openInv=getOpenInvoices();
+  const openAmt=openInv.reduce((s,i)=>s+(i.betrag||0),0);
+  // Überfällig
+  const nowStr=today.toISOString().slice(0,10);
+
+  let h='';
+  // Hero: Verfügbar
+  h+='<div class="home-hero">';
+  h+='<div class="home-hero-val">'+(hbc.budget>0?fmtC(hbc.saldo):'—')+'</div>';
+  h+='<div class="home-hero-label">Verfügbar '+hbc.label+'</div>';
+  h+='</div>';
+
+  // KPI 2er-Reihe
+  h+='<div class="home-kpi-row">';
+  h+='<div class="home-kpi"><div class="home-kpi-val">'+(hbc.isCur&&hbc.remainDays>0?fmtC(hbc.perDay):'—')+'</div><div class="home-kpi-lbl">Pro Tag noch</div></div>';
+  h+='<div class="home-kpi"><div class="home-kpi-val">'+(todayAmt>0?fmtC(todayAmt):'—')+'</div><div class="home-kpi-lbl">Heute ausgegeben</div></div>';
+  h+='</div>';
+
+  // Buchung erfassen
+  h+='<button class="add-btn" id="home-add-btn"><span style="font-size:18px;font-weight:300">+</span> Buchung erfassen</button>';
+
+  // Diese Woche fällig
+  const weekStr=new Date(Date.now()+7*86400000).toISOString().slice(0,10);
+  const thisWeekInv=openInv.filter(i=>i.faelligkeit&&i.faelligkeit>=nowStr&&i.faelligkeit<=weekStr);
+  const overdueInv=openInv.filter(i=>i.faelligkeit&&i.faelligkeit<nowStr);
+  if(thisWeekInv.length||overdueInv.length){
+    const urgentInv=[...overdueInv,...thisWeekInv].sort((a,b)=>(a.faelligkeit||'')>(b.faelligkeit||'')?1:-1);
+    const urgentAmt=urgentInv.reduce((s,i)=>s+(i.betrag||0),0);
+    h+='<div class="sec-hdr"><span class="sec-ttl">Diese Woche fällig</span><span class="sec-val sec-warn">'+fmtC(urgentAmt)+'</span></div>';
+    h+='<div class="inv-card">';
+    urgentInv.slice(0,4).forEach(inv=>{
+      const fmtD=d=>d?d.split('-').reverse().join('.'):'';
+      const isOverdue=inv.faelligkeit<nowStr;
+      h+='<div class="inv-row">';
+      h+='<div><div class="inv-name">'+esc(inv.rechnungssteller||'—')+'</div>';
+      h+='<div class="inv-meta">'+(isOverdue?'Überfällig seit ':'Fällig ')+fmtD(inv.faelligkeit)+'</div>';
+      h+='<button class="inv-pay-btn" data-id="'+inv._id+'">Bezahlt markieren</button></div>';
+      h+='<div class="inv-right"><div class="inv-amt">'+fmtC(inv.betrag||0)+'</div></div>';
+      h+='</div>';
+    });
+    h+='</div>';
+  }
+
+  // Alle offenen Rechnungen
+  if(openInv.length>0){
+    h+='<div class="sec-hdr"><span class="sec-ttl">Offene Rechnungen</span><span class="sec-val">'+fmtC(openAmt)+'</span></div>';
+    h+='<div class="inv-card">';
+    openInv.sort((a,b)=>(a.faelligkeit||'9999')>(b.faelligkeit||'9999')?1:-1).slice(0,8).forEach(inv=>{
+      const overdue=inv.faelligkeit&&inv.faelligkeit<nowStr;
+      const fmtD=d=>d?d.split('-').reverse().join('.'):'';
+      h+='<div class="inv-row">';
+      h+='<div><div class="inv-name">'+esc(inv.rechnungssteller||'—')+'</div>';
+      h+='<div class="inv-meta">'+(inv.faelligkeit?'Fällig '+fmtD(inv.faelligkeit):'')+(inv.notiz?' · '+esc(inv.notiz):'')+'</div>';
+      h+='<button class="inv-pay-btn" data-id="'+inv._id+'">Bezahlt</button></div>';
+      h+='<div class="inv-right"><div class="inv-amt">'+fmtC(inv.betrag||0)+'</div>';
+      h+='<div class="inv-status'+(overdue?' warn':'')+'">'+( overdue?'Überfällig':esc(inv.status||'') )+'</div></div>';
+      h+='</div>';
+    });
+    if(openInv.length>8) h+='<div style="padding:10px 16px;font-size:11px;color:var(--muted)">+'+(openInv.length-8)+' weitere</div>';
+    h+='</div>';
+  } else {
+    h+='<div style="padding:20px 16px;font-size:13px;color:var(--muted)">Keine offenen Rechnungen.</div>';
+  }
   return h;
 }
-function kpi(l,v,s){ return '<div class="kpi-card"><div class="kpi-label">'+l+'</div><div class="kpi-val">'+v+'</div>'+(s?'<div class="kpi-sub">'+s+'</div>':'')+'</div>'; }
 
-function renderHB(){
-  const{y:cy,m:cm}=hbCurPeriod(),nx=hbNext(cy,cm);
-  return hbCard(cy,cm,hbCalc(cy,cm),true)+hbCard(nx.y,nx.m,hbCalc(nx.y,nx.m),false);
-}
-function hbCard(y,m,c,isCur){
-  let hero,hl,foot;
-  if(c.isCur&&c.budget>0){hero=fmtC(c.perDay);hl='CHF / Tag · '+c.remainDays+' T. rest';foot='Saldo '+fmtC(c.saldo)+' · Budget '+fmtC(c.budget);}
-  else if(c.isPast&&c.budget>0){hero=fmtC(c.avgDay);hl='Ø CHF / Tag';foot='Saldo '+fmtC(c.saldo);}
-  else if(c.budget>0){hero=fmtC(c.budget);hl='Budget';foot=c.totalDays+' Tage geplant';}
-  else{hero='—';hl=c.isCur?'kein Budget':'—';foot=c.totalDays+' Tage';}
-  const badge=c.isCur?'Laufend':c.isFuture?'Geplant':'';
-  let bar;
-  if(isCur&&c.budget>0&&c.totalDays>0){
-    const sp=Math.min(100,c.pct).toFixed(1),tp=Math.min(100,c.dayUsed/c.totalDays*100).toFixed(1);
-    bar='<div class="hb-bar-wrap"><div class="hb-bar-fill" style="width:'+sp+'%"></div><div class="hb-bar-tick" style="left:'+tp+'%"></div></div><div class="hb-bar-info"><span>'+fmtC(c.ausgaben)+' ausgegeben</span><span>Tag '+c.dayUsed+' / '+c.totalDays+'</span></div>';
-  }else{
-    bar='<div class="hb-bar-wrap"><div class="hb-bar-fill" style="width:'+c.pct.toFixed(1)+'%"></div></div>';
+// ── Tab: Analyse ─────────────────────────────────────────
+function renderAnalyse(){
+  const{y:hy,m:hm}=hbCurPeriod();
+  const entries=hbEntries(hy,hm).filter(e=>e.type==='out');
+  const cats=hbCats();
+  const catMap=Object.fromEntries(cats.map(c=>[c.id,c.label]));
+
+  // HHB Ausgaben nach Kategorie
+  const hbByCat={};
+  entries.forEach(e=>{
+    const k=e.cat||'_other';
+    if(!hbByCat[k])hbByCat[k]=0;
+    hbByCat[k]+=e.amount||0;
+  });
+  const hbTotal=Object.values(hbByCat).reduce((s,v)=>s+v,0);
+
+  // Bezahlte Rechnungen mit hbKategorie (aktueller Monat)
+  const curM=new Date().getMonth(),curY=new Date().getFullYear();
+  const paidInv=getInvoices().filter(i=>i.status==='bezahlt'&&i.hbKategorie&&(i.budgetMonat??0)===curM&&(i.budgetJahr??curY)===curY);
+  const invByCat={};
+  paidInv.forEach(i=>{
+    if(!invByCat[i.hbKategorie])invByCat[i.hbKategorie]=0;
+    invByCat[i.hbKategorie]+=i.betrag||0;
+  });
+  const invTotal=paidInv.reduce((s,i)=>s+(i.betrag||0),0);
+
+  // Zusammenführen
+  const combined={};
+  [hbByCat,invByCat].forEach(src=>{
+    Object.entries(src).forEach(([k,v])=>{
+      if(!combined[k])combined[k]=0;
+      combined[k]+=v;
+    });
+  });
+  const total=Object.values(combined).reduce((s,v)=>s+v,0);
+  const sorted=Object.entries(combined).sort((a,b)=>b[1]-a[1]);
+
+  const hbc=hbCalc(hy,hm);
+  let h='';
+
+  // Total
+  h+='<div class="analyse-total">';
+  h+='<div class="analyse-total-val">'+fmtC(total)+'</div>';
+  h+='<div class="analyse-total-lbl">Ausgaben '+hbc.label+'</div>';
+  h+='</div>';
+
+  // Quellen
+  h+='<div class="sec-hdr"><span class="sec-ttl">Quellen</span></div>';
+  h+='<div class="source-row"><span class="source-lbl">Haushaltsbuch</span><span class="source-val">'+fmtC(hbTotal)+'</span></div>';
+  h+='<div class="source-row"><span class="source-lbl">Rechnungen (bezahlt)</span><span class="source-val">'+fmtC(invTotal)+'</span></div>';
+
+  // Kategorien
+  if(sorted.length>0){
+    h+='<div class="sec-hdr"><span class="sec-ttl">Kategorien</span></div>';
+    sorted.forEach(([k,v])=>{
+      const lbl=catMap[k]||(k==='_other'?'Sonstiges':k);
+      const pct=total>0?v/total*100:0;
+      h+='<div class="cat-row">';
+      h+='<div class="cat-row-head"><span class="cat-row-name">'+esc(lbl)+'</span><span class="cat-row-amt">'+fmtC(v)+'</span></div>';
+      h+='<div class="cat-bar-wrap"><div class="cat-bar-fill" style="width:'+pct.toFixed(1)+'%"></div></div>';
+      h+='<div class="cat-row-pct">'+pct.toFixed(0)+'%</div>';
+      h+='</div>';
+    });
+  } else {
+    h+='<div style="padding:20px 16px;font-size:13px;color:var(--muted)">Noch keine Buchungen diese Periode.</div>';
   }
-  return '<div class="hb-card'+(isCur?' current':'')+'"><div class="hb-card-head"><span class="hb-card-period">'+c.label+' '+y+'</span><span class="hb-card-badge">'+badge+'</span></div><div class="hb-hero">'+hero+'</div><div class="hb-hero-label">'+hl+'</div>'+bar+'<div class="hb-foot">'+foot+'</div></div>';
+  return h;
 }
 
+// ── Tab: Budget ───────────────────────────────────────────
+function renderBudget(){
+  const{y:cy,m:cm}=hbCurPeriod(),nx=hbNext(cy,cm);
+  let h='<div style="height:12px"></div>';
+  h+=budgetMonthCard(cy,cm,hbCalc(cy,cm),true);
+  h+=budgetMonthCard(nx.y,nx.m,hbCalc(nx.y,nx.m),false);
+  return h;
+}
+function budgetMonthCard(y,m,c,isCur){
+  let hero,hl,foot;
+  if(c.isCur&&c.budget>0){
+    hero=fmtC(c.perDay);hl='CHF / Tag · '+c.remainDays+' Tage verbleibend';
+    foot=['Ausgaben: '+fmtC(c.ausgaben),'Budget: '+fmtC(c.budget)];
+  } else if(c.isPast&&c.budget>0){
+    hero=fmtC(c.avgDay);hl='Ø CHF / Tag';
+    foot=['Saldo: '+fmtC(c.saldo),'Ausgaben: '+fmtC(c.ausgaben)];
+  } else if(c.budget>0){
+    hero=fmtC(c.budget);hl='Geplantes Budget';
+    foot=[c.totalDays+' Tage','—'];
+  } else {
+    hero='—';hl='Kein Budget';
+    foot=['—','—'];
+  }
+  const badge=c.isCur?'Laufend':c.isFuture?'Geplant':'Abgeschlossen';
+  let bar='';
+  if(c.budget>0&&c.totalDays>0){
+    const sp=Math.min(100,c.pct).toFixed(1);
+    if(isCur){
+      const tp=Math.min(100,c.dayUsed/c.totalDays*100).toFixed(1);
+      bar='<div class="bmc-bar-wrap"><div class="bmc-bar-fill" style="width:'+sp+'%"></div><div class="bmc-bar-tick" style="left:'+tp+'%"></div></div>';
+      bar+='<div class="bmc-bar-info"><span>'+fmtC(c.ausgaben)+' ausgegeben</span><span>Tag '+c.dayUsed+' / '+c.totalDays+'</span></div>';
+    } else {
+      bar='<div class="bmc-bar-wrap"><div class="bmc-bar-fill" style="width:'+sp+'%"></div></div>';
+    }
+  }
+  return '<div class="budget-month-card'+(isCur?' active':'')+'">'+
+    '<div class="bmc-head"><span class="bmc-period">'+c.label+' '+y+'</span><span class="bmc-badge">'+badge+'</span></div>'+
+    '<div class="bmc-hero">'+hero+'</div>'+
+    '<div class="bmc-hero-lbl">'+hl+'</div>'+
+    (bar?bar+'<div style="height:8px"></div>':'')+
+    '<div class="bmc-foot"><span>'+foot[0]+'</span><span>'+foot[1]+'</span></div>'+
+    '</div>';
+}
+
+function esc(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+
+// ── Tab: Rechnungen ─────────────────────────────────────
+function renderRechnungen(){
+  const invs=getInvoices();
+  const nowStr=new Date().toISOString().slice(0,10);
+  const weekStr=new Date(Date.now()+7*86400000).toISOString().slice(0,10);
+  const open=invs.filter(i=>i.status!=='bezahlt'&&!i.wiederkehrend);
+  const overdue=open.filter(i=>i.faelligkeit&&i.faelligkeit<nowStr);
+  const thisWeek=open.filter(i=>i.faelligkeit&&i.faelligkeit>=nowStr&&i.faelligkeit<=weekStr);
+  const later=open.filter(i=>!i.faelligkeit||i.faelligkeit>weekStr);
+  const paid=invs.filter(i=>i.status==='bezahlt');
+  const openAmt=open.reduce((s,i)=>s+(i.betrag||0),0);
+
+  let h='';
+  // Status bar
+  h+='<div class="inv-status-bar">';
+  h+='<div class="inv-stat warn"><div class="inv-stat-val">'+overdue.length+'</div><div class="inv-stat-lbl">Überfällig</div></div>';
+  h+='<div class="inv-stat"><div class="inv-stat-val">'+thisWeek.length+'</div><div class="inv-stat-lbl">Diese Woche</div></div>';
+  h+='<div class="inv-stat"><div class="inv-stat-val">'+fmtC(openAmt)+'</div><div class="inv-stat-lbl">Offen total</div></div>';
+  h+='</div>';
+
+  function invGroup(title, list, emptyMsg){
+    if(!list.length) return emptyMsg?'<div style="padding:10px 16px 0;font-size:11px;color:var(--muted)">'+emptyMsg+'</div>':'';
+    let g='<div class="sec-hdr"><span class="sec-ttl">'+title+'</span><span class="sec-val">'+list.length+'</span></div>';
+    g+='<div class="inv-card">';
+    list.sort((a,b)=>(a.faelligkeit||'9999')>(b.faelligkeit||'9999')?1:-1).forEach(inv=>{
+      const fmtD=d=>d?d.split('-').reverse().join('.'):'';
+      const isOverdue=inv.faelligkeit&&inv.faelligkeit<nowStr;
+      g+='<div class="inv-swipe" id="sw-'+inv._id+'">';
+      g+='<div class="inv-swipe-bg">Bezahlt ✓</div>';
+      g+='<div class="inv-swipe-inner">';
+      g+='<div><div class="inv-name">'+esc(inv.rechnungssteller||'—')+'</div>';
+      g+='<div class="inv-meta">'+(inv.faelligkeit?'Fällig '+fmtD(inv.faelligkeit):'Kein Datum')+(inv.notiz?' · '+esc(inv.notiz):'')+'</div></div>';
+      g+='<div class="inv-right"><div class="inv-amt">'+fmtC(inv.betrag||0)+'</div>';
+      g+='<div class="inv-status'+(isOverdue?' warn':'')+'">'+esc(inv.status||'')+'</div></div>';
+      g+='</div></div>';
+    });
+    g+='</div>';
+    return g;
+  }
+
+  h+=invGroup('Überfällig', overdue, '');
+  h+=invGroup('Diese Woche fällig', thisWeek, '');
+  h+=invGroup('Später', later, 'Keine weiteren offenen Rechnungen.');
+  if(paid.length) h+='<div class="sec-hdr"><span class="sec-ttl">Bezahlt</span><span class="sec-val">'+paid.length+'</span></div>';
+  return h;
+}
+
+function bindRechnungen(){
+  document.querySelectorAll('.inv-swipe').forEach(row=>{
+    const inner=row.querySelector('.inv-swipe-inner');
+    let startX=0, currentX=0, isDragging=false;
+    const THRESHOLD=80;
+    row.addEventListener('touchstart',e=>{
+      startX=e.touches[0].clientX; isDragging=true; inner.style.transition='none';
+    },{passive:true});
+    row.addEventListener('touchmove',e=>{
+      if(!isDragging) return;
+      currentX=e.touches[0].clientX-startX;
+      if(currentX>0) currentX=0;
+      inner.style.transform='translateX('+Math.max(-THRESHOLD*1.2,currentX)+'px)';
+      row.classList.toggle('swiping',currentX<-40);
+    },{passive:true});
+    row.addEventListener('touchend',async()=>{
+      isDragging=false;
+      inner.style.transition='transform .2s ease';
+      if(currentX<-THRESHOLD){
+        inner.style.transform='translateX(-100%)';
+        const id=row.id.replace('sw-','');
+        setTimeout(async()=>{ await markPaid(id); render(); },300);
+      } else {
+        inner.style.transform='';
+        row.classList.remove('swiping');
+      }
+      currentX=0;
+    });
+  });
+}
+
+// ── Improved openAddModal (+ Datum, Beschreibung) ────────
 function openAddModal(){
-  addForm={amount:'',type:'out',cat:'',desc:''};
+  addForm={amount:'',type:'out',cat:'',desc:'',date:new Date().toISOString().slice(0,10)};
   const cats=hbCats();
   const el=document.createElement('div');
   el.className='modal-overlay'; el.id='add-modal';
@@ -357,9 +687,12 @@ function openAddModal(){
         '<button class="type-btn active" id="m-out">Ausgabe</button>'+
         '<button class="type-btn" id="m-in">Einnahme</button>'+
       '</div>'+
-      '<span class="cat-label">Kategorie</span>'+
+      '<span class="field-lbl">Kategorie</span>'+
       '<div class="cat-grid">'+cats.map(c=>'<button class="cat-btn" data-cat="'+c.id+'">'+c.label+'</button>').join('')+'</div>'+
-      '<input class="desc-input" id="m-desc" placeholder="Beschreibung (optional)">'+
+      '<span class="field-lbl">Beschreibung</span>'+
+      '<input class="desc-input" id="m-desc" placeholder="Beschreibung">'+
+      '<span class="field-lbl">Datum</span>'+
+      '<input class="date-input" id="m-date" type="date" value="'+new Date().toISOString().slice(0,10)+'">'+
     '<div class="modal-footer">'+
       '<button class="modal-cancel" id="m-can">Abbrechen</button>'+
       '<button class="modal-save" id="m-sav">Speichern</button>'+
@@ -388,12 +721,12 @@ function openAddModal(){
   document.getElementById('m-sav').addEventListener('click',async()=>{
     addForm.amount=document.getElementById('m-amt').value;
     addForm.desc=document.getElementById('m-desc').value;
+    addForm.date=document.getElementById('m-date').value||new Date().toISOString().slice(0,10);
+    if(!addForm.desc.trim()&&!addForm.cat){showToast('Beschreibung oder Kategorie erforderlich');return;}
     closeModal();
     await addEntry();
   });
 }
-function renderSheet(){ return ''; }
-function bindSheet(){}
 
 // ── Boot ──────────────────────────────────────────────────
 async function boot(){
