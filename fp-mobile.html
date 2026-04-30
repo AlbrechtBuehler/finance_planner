@@ -697,94 +697,99 @@ function esc(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').
 // ── Tab: Schulden ─────────────────────────────────────────
 function renderSchulden(){
   const y=new Date().getFullYear();
+  const curM=new Date().getMonth();
   const structure=payload?.structure||[];
   const data=payload?.data||{};
-
-  // Collect all debt items from verbind + schuld categories
   const debtCats=['verbind','schuld_estv','schuld_priv','schuld_firm'];
+
+  // Alle Schuld-Positionen aus Budgettabelle
   const items=[];
   structure.forEach(cat=>{
     if(!debtCats.includes(cat.id)) return;
     (cat.subcats||[]).forEach(sc=>{
       (sc.items||[]).forEach(it=>{
-        const ansatz=data[y]?.[it.id]?.ansatz||0;
-        const start=data[y-1]?.[it.id]?.ansatz||data[y-2]?.[it.id]?.ansatz||ansatz;
-        if(ansatz>0||start>0) items.push({id:it.id,label:it.label,current:ansatz,start,group:cat.label});
+        const current=data[y]?.[it.id]?.ansatz||0;
+        const prev=data[y-1]?.[it.id]?.ansatz||0;
+        const months=data[y]?.[it.id]?.months||[];
+        if(current>0||prev>0) items.push({
+          id:it.id, label:it.label, group:cat.label,
+          current, prev, months
+        });
       });
     });
   });
 
+  // Totals direkt aus Budgettabelle
   const totalCurrent=items.reduce((s,i)=>s+i.current,0);
-  const totalStart=items.reduce((s,i)=>s+i.start,0)||totalCurrent;
-  const totalTilgt=Math.max(0,totalStart-totalCurrent);
-  const pct=totalStart>0?Math.min(100,totalTilgt/totalStart*100):0;
+  const totalPrev=items.reduce((s,i)=>s+i.prev,0)||totalCurrent;
+  const totalTilgt=Math.max(0,totalPrev-totalCurrent);
+  const pct=totalPrev>0?Math.min(100,totalTilgt/totalPrev*100):0;
 
-  // tilgtYTD: Differenz 2025→2026 pro Gläubiger
-  // Korrektur -1'710: "Steuern Vorjahre" war per 1.1.2026 effektiv CHF 8'290, nicht CHF 10'000
-  const TILGT_CORRECTION=1710;
-  const tilgtYTD=Math.max(0,items.reduce((s,i)=>{
-    const startY=data[y-1]?.[i.id]?.ansatz||i.start;
-    return s+Math.max(0,startY-i.current);
-  },0)-TILGT_CORRECTION);
-  // Avg monthly rate based on months elapsed this year
-  const curM=new Date().getMonth();
-  const avgMonthly=curM>0?tilgtYTD/curM:tilgtYTD;
-  const monthsLeft=avgMonthly>0?Math.ceil(totalCurrent/avgMonthly):null;
-  const doneYear=monthsLeft?y+Math.floor((new Date().getMonth()+monthsLeft)/12):null;
+  // Getilgt YTD = Summe der Monatsraten Jan–heute aus Budgettabelle
+  const tilgtYTD=items.reduce((s,i)=>s+i.months.slice(0,curM+1).reduce((a,b)=>a+b,0),0);
+
+  // Ø Rate = Monatsdurchschnitt YTD
+  const avgMonthly=curM>=0?Math.round(tilgtYTD/(curM+1)):0;
+
+  // Schuldenfrei = erstes Jahr wo alle Positionen ansatz=0
+  let doneYear=null;
+  for(let yr=y;yr<=y+15;yr++){
+    const hasDebt=items.some(i=>(data[yr]?.[i.id]?.ansatz||0)>0);
+    if(!hasDebt){doneYear=yr;break;}
+  }
+
+  // Quick Win = kleinste laufende Schuld
+  const quickWin=items.filter(i=>i.current>0).sort((a,b)=>a.current-b.current)[0];
+  const quickWinMonths=quickWin&&avgMonthly>0?Math.ceil(quickWin.current/avgMonthly):null;
 
   let h='';
 
-  // Hero
+  // Hero Card
   h+='<div class="kpi-card">';
   h+='<div class="kpi-label">Aktueller Schuldenstand</div>';
   h+='<div class="kpi-val">'+fmtC(totalCurrent)+'</div>';
-  h+='<div class="kpi-sub">von urspr. '+fmtC(totalStart)+'</div>';
+  h+='<div class="kpi-sub">von urspr. '+fmtC(totalPrev)+'</div>';
   h+='<div class="hb-bar-wrap" style="margin:10px 0 4px"><div class="hb-bar-fill" style="width:'+pct.toFixed(1)+'%"></div></div>';
   h+='<div style="display:flex;justify-content:space-between;font-size:9px;color:var(--muted);font-variant-numeric:tabular-nums">';
   h+='<span>'+pct.toFixed(0)+'% abgebaut</span><span>'+fmtC(totalTilgt)+' getilgt</span></div>';
   h+='</div>';
 
-  // KPI grid
-  // Quick Win: kleinste offene Schuld
-  const quickWin=items.filter(i=>i.current>0).sort((a,b)=>a.current-b.current)[0];
-  const quickWinMonths=quickWin&&avgMonthly>0?Math.ceil(quickWin.current/avgMonthly):null;
-
+  // 4 KPIs
   h+='<div class="stat-grid">';
   h+='<div class="stat-cell"><div class="stat-val">'+fmt(tilgtYTD)+'</div><div class="stat-lbl">Getilgt '+y+'</div></div>';
-  h+='<div class="stat-cell"><div class="stat-val">'+(avgMonthly>0?fmt(avgMonthly):'—')+'</div><div class="stat-lbl">Ø Rate / Monat</div></div>';
-  h+='<div class="stat-cell"><div class="stat-val">~'+(doneYear||'—')+'</div><div class="stat-lbl">Schuldenfrei</div></div>';
+  h+='<div class="stat-cell"><div class="stat-val">'+fmt(avgMonthly)+'</div><div class="stat-lbl">Ø Rate / Monat</div></div>';
+  h+='<div class="stat-cell"><div class="stat-val">'+( doneYear||'—')+'</div><div class="stat-lbl">Schuldenfrei</div></div>';
   h+='<div class="stat-cell">';
   if(quickWin){
-    h+='<div class="stat-val" style="font-size:13px;line-height:1.2">'+esc(quickWin.label)+'</div>';
-    h+='<div class="stat-lbl">'+fmt(quickWin.current)+(quickWinMonths?' · ~'+quickWinMonths+' Mt':'')+'</div>';
+    h+='<div class="stat-val" style="font-size:13px;line-height:1.3">'+esc(quickWin.label)+'</div>';
+    h+='<div class="stat-lbl">'+fmtC(quickWin.current)+(quickWinMonths?' · '+quickWinMonths+' Mt':'')+'</div>';
   } else {
     h+='<div class="stat-val">—</div><div class="stat-lbl">Quick Win</div>';
   }
-  h+='</div>';
-  h+='</div>';
+  h+='</div></div>';
 
-  // Per creditor collapsable
+  // Gläubiger collapsable
   items.sort((a,b)=>b.current-a.current).forEach((item,i)=>{
-    const pctItem=item.start>0?Math.min(100,(item.start-item.current)/item.start*100):0;
+    const pctItem=item.prev>0?Math.min(100,(item.prev-item.current)/item.prev*100):0;
     const sid='debt-'+i;
     h+='<div class="inv-sec-wrap" id="'+sid+'">';
     h+='<div class="inv-sec-hdr" onclick="toggleSec(\''+sid+'\')" style="cursor:pointer">';
-    h+='<div style="display:flex;align-items:center;gap:8px"><span class="inv-sec-t">'+esc(item.label)+'</span></div>';
+    h+='<span class="inv-sec-t">'+esc(item.label)+'</span>';
     h+='<div style="display:flex;align-items:center;gap:6px"><span class="inv-sec-v">'+fmtC(item.current)+'</span><span id="chev-'+sid+'" style="font-size:9px;color:rgba(255,255,255,.3)">▼</span></div>';
     h+='</div>';
-    h+='<div class="inv-sec-body" id="body-'+sid+'" style="display:none;border-top:1px solid rgba(255,255,255,.08);padding:10px 13px">';
-    h+='<div style="font-size:11px;color:rgba(255,255,255,.5);margin-bottom:6px">'+esc(item.group)+'</div>';
-    h+='<div style="display:flex;justify-content:space-between;font-size:11px;margin-bottom:4px"><span style="color:rgba(255,255,255,.4)">Ursprung</span><span style="font-variant-numeric:tabular-nums">'+fmtC(item.start)+'</span></div>';
-    h+='<div style="display:flex;justify-content:space-between;font-size:11px;margin-bottom:8px"><span style="color:rgba(255,255,255,.4)">Getilgt</span><span style="font-variant-numeric:tabular-nums">'+fmtC(Math.max(0,item.start-item.current))+'</span></div>';
-    h+='<div class="hb-bar-wrap" style="margin:6px 0 3px"><div class="hb-bar-fill" style="width:'+pctItem.toFixed(1)+'%"></div></div>';
-    h+='<div style="text-align:right;font-size:9px;color:rgba(255,255,255,.3);margin-top:3px">'+pctItem.toFixed(0)+'% abgebaut</div>';
+    h+='<div id="body-'+sid+'" style="display:none;border-top:1px solid rgba(255,255,255,.08);padding:10px 13px">';
+    h+='<div style="font-size:10px;color:rgba(255,255,255,.4);margin-bottom:8px">'+esc(item.group)+'</div>';
+    h+='<div style="display:flex;justify-content:space-between;font-size:11px;margin-bottom:3px"><span style="color:rgba(255,255,255,.4)">Stand '+( y-1)+'</span><span style="font-variant-numeric:tabular-nums">'+fmtC(item.prev)+'</span></div>';
+    h+='<div style="display:flex;justify-content:space-between;font-size:11px;margin-bottom:8px"><span style="color:rgba(255,255,255,.4)">Getilgt</span><span style="font-variant-numeric:tabular-nums">'+fmtC(Math.max(0,item.prev-item.current))+'</span></div>';
+    h+='<div class="hb-bar-wrap" style="margin:4px 0 3px"><div class="hb-bar-fill" style="width:'+pctItem.toFixed(1)+'%"></div></div>';
+    h+='<div style="text-align:right;font-size:9px;color:rgba(255,255,255,.3);">'+pctItem.toFixed(0)+'% abgebaut</div>';
     h+='</div></div>';
   });
 
-  if(!items.length) h+='<div style="padding:20px 0;text-align:center;font-size:12px;color:var(--muted)">Keine Schulden erfasst.</div>';
   h+='<div style="height:16px"></div>';
   return h;
 }
+
 
 function toggleSec(id){
   const body=document.getElementById('body-'+id);
