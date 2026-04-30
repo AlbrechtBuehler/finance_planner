@@ -367,20 +367,18 @@ function renderMain(){
   const now=new Date(),mo=MON_F[now.getMonth()]+' '+now.getFullYear();
   const tabs=[
     {id:'home',lbl:'Home',svg:'<path d="M3 12L12 3l9 9"/><path d="M9 21V12h6v9"/>'},
-    {id:'rechnungen',lbl:'Rechnungen',svg:'<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/>'},
-    {id:'analyse',lbl:'Analyse',svg:'<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/>'},
-    {id:'budget',lbl:'Budget',svg:'<rect x="3" y="3" width="18" height="18" rx="0"/><path d="M3 9h18M9 21V9"/>'},
+    {id:'mehr',lbl:'Mehr',svg:'<circle cx="12" cy="5" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="12" cy="19" r="1"/>'},
   ];
   let nav='<div class="bottom-nav">';
   tabs.forEach(t=>{nav+='<button class="nav-btn'+(tab===t.id?' active':'')+'" id="nav-'+t.id+'"><svg viewBox="0 0 24 24">'+t.svg+'</svg><span>'+t.lbl+'</span></button>';});
   nav+='</div>';
-  const content=tab==='home'?renderHome():tab==='rechnungen'?renderRechnungen():tab==='analyse'?renderAnalyse():renderBudget();
+  const content=tab==='home'?renderHome():renderMehr();
   return '<div class="header"><div><div class="header-title">Finanzplaner</div><div class="header-sub">'+mo+'</div></div><button class="reload-btn" id="btn-reload">↺</button></div>'+
     '<div class="tab-content" id="tab-content">'+content+'</div>'+nav+
     '<button class="fab" id="btn-fab">+</button>';
 }
 function bindMain(){
-  ['home','rechnungen','analyse','budget'].forEach(id=>{
+  ['home','mehr'].forEach(id=>{
     document.getElementById('nav-'+id)?.addEventListener('click',()=>{tab=id;render();});
   });
   document.getElementById('btn-reload')?.addEventListener('click',async()=>{
@@ -390,7 +388,7 @@ function bindMain(){
   });
   document.getElementById('btn-fab')?.addEventListener('click',openAddModal);
   // Bind swipe + pay
-  if(tab==='rechnungen') bindRechnungen();
+  if(tab==='mehr') bindRechnungen();
   document.querySelectorAll('.inv-pay-btn').forEach(b=>{
     b.addEventListener('click',async()=>{
       const id=b.dataset.id; if(!id)return;
@@ -726,6 +724,92 @@ function openAddModal(){
     closeModal();
     await addEntry();
   });
+}
+
+// ── Tab: Mehr (Rechnungen + Analyse + Budget) ───────────
+function renderMehr(){
+  let h='';
+  // ── Rechnungen Section ──
+  const invs=getInvoices();
+  const nowStr=new Date().toISOString().slice(0,10);
+  const weekStr=new Date(Date.now()+7*86400000).toISOString().slice(0,10);
+  const open=invs.filter(i=>i.status!=='bezahlt'&&!i.wiederkehrend);
+  const overdue=open.filter(i=>i.faelligkeit&&i.faelligkeit<nowStr);
+  const thisWeek=open.filter(i=>i.faelligkeit&&i.faelligkeit>=nowStr&&i.faelligkeit<=weekStr);
+  const later=open.filter(i=>!i.faelligkeit||i.faelligkeit>weekStr);
+  const paid=invs.filter(i=>i.status==='bezahlt');
+  const openAmt=open.reduce((s,i)=>s+(i.betrag||0),0);
+
+  h+='<div class="sec-hdr" style="padding-top:20px"><span class="sec-ttl" style="font-size:11px;font-weight:700;color:var(--text)">Rechnungen</span></div>';
+  h+='<div class="inv-status-bar">';
+  h+='<div class="inv-stat warn"><div class="inv-stat-val">'+overdue.length+'</div><div class="inv-stat-lbl">Überfällig</div></div>';
+  h+='<div class="inv-stat"><div class="inv-stat-val">'+thisWeek.length+'</div><div class="inv-stat-lbl">Diese Woche</div></div>';
+  h+='<div class="inv-stat"><div class="inv-stat-val">'+open.length+'</div><div class="inv-stat-lbl">Offen</div></div>';
+  h+='</div>';
+
+  function invGroup(title, list){
+    if(!list.length) return '';
+    let g='<div class="sec-hdr"><span class="sec-ttl">'+title+'</span><span class="sec-val">'+fmtC(list.reduce((s,i)=>s+(i.betrag||0),0))+'</span></div>';
+    g+='<div class="inv-card">';
+    list.sort((a,b)=>(a.faelligkeit||'9999')>(b.faelligkeit||'9999')?1:-1).forEach(inv=>{
+      const fmtD=d=>d?d.split('-').reverse().join('.'):'';
+      const isOverdue=inv.faelligkeit&&inv.faelligkeit<nowStr;
+      g+='<div class="inv-swipe" id="sw-'+inv._id+'">';
+      g+='<div class="inv-swipe-bg">Bezahlt ✓</div>';
+      g+='<div class="inv-swipe-inner">';
+      g+='<div><div class="inv-name">'+esc(inv.rechnungssteller||'—')+'</div>';
+      g+='<div class="inv-meta">'+(isOverdue?'Überfällig seit ':'Fällig ')+fmtD(inv.faelligkeit||'')+(inv.notiz?' · '+esc(inv.notiz):'')+'</div></div>';
+      g+='<div class="inv-right"><div class="inv-amt">'+fmtC(inv.betrag||0)+'</div>';
+      g+='<div class="inv-status'+(isOverdue?' warn':'')+'">'+esc(inv.status||'')+'</div></div>';
+      g+='</div></div>';
+    });
+    g+='</div>';
+    return g;
+  }
+
+  h+=invGroup('Überfällig', overdue);
+  h+=invGroup('Diese Woche', thisWeek);
+  h+=invGroup('Später', later);
+  if(paid.length) h+='<div class="sec-hdr"><span class="sec-ttl">Bezahlt</span><span class="sec-val">'+paid.length+'</span></div>';
+
+  // ── Analyse Section ──
+  const{y:hy,m:hm}=hbCurPeriod();
+  const entries=hbEntries(hy,hm).filter(e=>e.type==='out');
+  const cats=hbCats();
+  const catMap=Object.fromEntries(cats.map(c=>[c.id,c.label]));
+  const curM=new Date().getMonth(),curY=new Date().getFullYear();
+  const combined={};
+  entries.forEach(e=>{const k=e.cat||'_other';combined[k]=(combined[k]||0)+(e.amount||0);});
+  const paidInv=getInvoices().filter(i=>i.status==='bezahlt'&&i.hbKategorie&&(i.budgetMonat??0)===curM&&(i.budgetJahr??curY)===curY);
+  paidInv.forEach(i=>{combined[i.hbKategorie]=(combined[i.hbKategorie]||0)+(i.betrag||0);});
+  const total=Object.values(combined).reduce((s,v)=>s+v,0);
+  const sorted=Object.entries(combined).sort((a,b)=>b[1]-a[1]);
+  const hbc=hbCalc(hy,hm);
+
+  h+='<div style="height:1px;background:var(--border);margin:20px 0 0"></div>';
+  h+='<div class="analyse-total" style="padding:14px 16px">';
+  h+='<div class="analyse-total-val">'+fmtC(total)+'</div>';
+  h+='<div class="analyse-total-lbl">Ausgaben '+hbc.label+'</div>';
+  h+='</div>';
+  if(sorted.length){
+    sorted.forEach(([k,v])=>{
+      const lbl=catMap[k]||(k==='_other'?'Sonstiges':k);
+      const pct=total>0?v/total*100:0;
+      h+='<div class="cat-row">';
+      h+='<div class="cat-row-head"><span class="cat-row-name">'+esc(lbl)+'</span><span class="cat-row-amt">'+fmtC(v)+'</span></div>';
+      h+='<div class="cat-bar-wrap"><div class="cat-bar-fill" style="width:'+pct.toFixed(1)+'%"></div></div>';
+      h+='<div class="cat-row-pct">'+pct.toFixed(0)+'%</div>';
+      h+='</div>';
+    });
+  }
+
+  // ── Budget Section ──
+  const{y:cy,m:cm}=hbCurPeriod(),nx=hbNext(cy,cm);
+  h+='<div style="height:1px;background:var(--border);margin:20px 0 12px"></div>';
+  h+=budgetMonthCard(cy,cm,hbCalc(cy,cm),true);
+  h+=budgetMonthCard(nx.y,nx.m,hbCalc(nx.y,nx.m),false);
+  h+='<div style="height:20px"></div>';
+  return h;
 }
 
 // ── Boot ──────────────────────────────────────────────────
