@@ -147,6 +147,37 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:-apple-
 .bmc-bar-info{display:flex;justify-content:space-between;padding:0 14px;font-size:10px;color:var(--muted);font-variant-numeric:tabular-nums}
 .bmc-foot{padding:10px 14px;border-top:1px solid var(--border);font-size:11px;color:var(--muted);display:flex;justify-content:space-between}
 .bmc-foot span+span{font-variant-numeric:tabular-nums}
+
+.hb-add-card{background:#0A0B09;border:1px solid rgba(250,250,247,.12);display:flex;align-items:center;justify-content:center;padding:22px;cursor:pointer;width:100%;border:none;margin-top:0}
+.hb-add-ico{font-size:44px;font-weight:200;color:#FAFAF7;line-height:1}
+.stat-grid{display:grid;grid-template-columns:1fr 1fr;gap:1px;background:rgba(250,250,247,.08);margin-bottom:8px}
+.stat-cell{background:var(--bg);padding:11px 14px}
+.stat-cell.warn .stat-val{opacity:.9}
+.stat-val{font-size:17px;font-weight:600;font-variant-numeric:tabular-nums;letter-spacing:-.02em}
+.stat-lbl{font-size:9px;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);margin-top:2px}
+.mc-card{border:1px solid rgba(250,250,247,.08);overflow:hidden;margin-bottom:7px}
+.mc-head{padding:9px 12px;display:flex;justify-content:space-between;align-items:center}
+.mc-name{font-size:11px;font-weight:700;color:#000}
+.mc-amt{font-size:10px;color:#000;opacity:.7}
+.mc-body{padding:7px 12px 9px}
+.mc-row{display:flex;align-items:center;gap:6px;margin-bottom:4px}
+.mc-lbl{font-size:10px;color:rgba(250,250,247,.45);width:72px;flex-shrink:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.mc-bw{flex:1;height:2px;background:rgba(250,250,247,.08)}
+.mc-bf{height:2px}
+.mc-val{font-size:9px;color:rgba(250,250,247,.3);min-width:32px;text-align:right}
+.inv-sec-hdr{display:flex;justify-content:space-between;padding:10px 14px 5px}
+.inv-sec-t{font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--muted)}
+.inv-sec-v{font-size:11px;color:var(--muted);font-variant-numeric:tabular-nums}
+.inv-group{background:var(--surface);margin:0 0 2px}
+.inv-row{display:flex;justify-content:space-between;align-items:center;padding:10px 14px;border-bottom:1px solid rgba(250,250,247,.06)}
+.inv-row:last-child{border-bottom:none}
+.inv-name{font-size:13px;font-weight:500}
+.inv-meta{font-size:10px;color:var(--muted);margin-top:1px}
+.inv-amt{font-size:13px;font-weight:600;font-variant-numeric:tabular-nums}
+.inv-status{font-size:9px;color:var(--muted);margin-top:1px;text-align:right}
+.inv-status.warn{color:rgba(255,200,80,.85)}
+.inv-empty{padding:10px 14px;font-size:12px;color:var(--muted)}
+
 </style>
 </head>
 <body>
@@ -366,19 +397,22 @@ async function markPaid(invId){
 function renderMain(){
   const now=new Date(),mo=MON_F[now.getMonth()]+' '+now.getFullYear();
   const tabs=[
-    {id:'home',lbl:'Home',svg:'<path d="M3 12L12 3l9 9"/><path d="M9 21V12h6v9"/>'},
-    {id:'mehr',lbl:'Mehr',svg:'<circle cx="12" cy="5" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="12" cy="19" r="1"/>'},
+    {id:'home',     lbl:'Home',       svg:'<path d="M3 12L12 3l9 9"/><path d="M9 21V12h6v9"/>'},
+    {id:'ausgaben', lbl:'Ausgaben',   svg:'<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/>'},
+    {id:'rechnungen',lbl:'Rechnungen',svg:'<path d="M14 2H6a2 2 0 0 0-2 2v16h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/>'},
   ];
   let nav='<div class="bottom-nav">';
   tabs.forEach(t=>{nav+='<button class="nav-btn'+(tab===t.id?' active':'')+'" id="nav-'+t.id+'"><svg viewBox="0 0 24 24">'+t.svg+'</svg><span>'+t.lbl+'</span></button>';});
   nav+='</div>';
-  const content=tab==='home'?renderHome():renderMehr();
+  let content='';
+  if(tab==='home') content=renderHome();
+  else if(tab==='ausgaben') content=renderAusgaben();
+  else content=renderRechnungen();
   return '<div class="header"><div><div class="header-title">Finanzplaner</div><div class="header-sub">'+mo+'</div></div><button class="reload-btn" id="btn-reload">↺</button></div>'+
-    '<div class="tab-content" id="tab-content">'+content+'</div>'+nav+
-    '<button class="fab" id="btn-fab">+</button>';
+    '<div class="tab-content" id="tab-content">'+content+'</div>'+nav;
 }
 function bindMain(){
-  ['home','mehr'].forEach(id=>{
+  ['home','ausgaben','rechnungen'].forEach(id=>{
     document.getElementById('nav-'+id)?.addEventListener('click',()=>{tab=id;render();});
   });
   document.getElementById('btn-reload')?.addEventListener('click',async()=>{
@@ -386,431 +420,205 @@ function bindMain(){
     try{await loadFile();_status='ready';}catch(e){_status='error';_errMsg=e.message;}
     render();
   });
-  document.getElementById('btn-fab')?.addEventListener('click',openAddModal);
-  // Bind swipe + pay
-  if(tab==='mehr') bindRechnungen();
-  document.querySelectorAll('.inv-pay-btn').forEach(b=>{
-    b.addEventListener('click',async()=>{
-      const id=b.dataset.id; if(!id)return;
-      b.textContent='…'; b.disabled=true;
-      await markPaid(id); render();
-    });
-  });
+  document.getElementById('btn-add-card')?.addEventListener('click',openAddModal);
 }
 
-// ── Tab: Home ────────────────────────────────────────────
+// ── Tab: Home ─────────────────────────────────────────────
 function renderHome(){
   const{y:hy,m:hm}=hbCurPeriod(),hbc=hbCalc(hy,hm);
   const today=new Date();
-  // Heute ausgegeben
   const todayISO=today.toISOString().slice(0,10);
   const todayAmt=hbEntries(hy,hm).filter(e=>e.type==='out'&&e.date===todayISO).reduce((s,e)=>s+(e.amount||0),0);
-  // Offene Rechnungen
-  const openInv=getOpenInvoices();
-  const openAmt=openInv.reduce((s,i)=>s+(i.betrag||0),0);
-  // Überfällig
-  const nowStr=today.toISOString().slice(0,10);
-
+  const todayLast=hbEntries(hy,hm).filter(e=>e.type==='out'&&e.date===todayISO).slice(-1)[0];
   let h='';
-  // Hero: Verfügbar
-  h+='<div class="home-hero">';
-  h+='<div class="home-hero-val">'+(hbc.budget>0?fmtC(hbc.saldo):'—')+'</div>';
-  h+='<div class="home-hero-label">Verfügbar '+hbc.label+'</div>';
+  // KPI 1: Verfügbar diesen Monat
+  h+='<div class="kpi-card"><div class="kpi-label">Verfügbar diesen Monat</div><div class="kpi-val">'+(hbc.budget>0?fmtC(hbc.saldo):'—')+'</div>';
+  if(hbc.budget>0) h+='<div class="kpi-sub">Budget '+fmtC(hbc.budget)+' · '+hbc.remainDays+' Tage rest</div>';
   h+='</div>';
-
-  // KPI 2er-Reihe
-  h+='<div class="home-kpi-row">';
-  h+='<div class="home-kpi"><div class="home-kpi-val">'+(hbc.isCur&&hbc.remainDays>0?fmtC(hbc.perDay):'—')+'</div><div class="home-kpi-lbl">Pro Tag noch</div></div>';
-  h+='<div class="home-kpi"><div class="home-kpi-val">'+(todayAmt>0?fmtC(todayAmt):'—')+'</div><div class="home-kpi-lbl">Heute ausgegeben</div></div>';
+  // KPI 2: Verfügbar heute
+  h+='<div class="kpi-card"><div class="kpi-label">Verfügbar heute</div><div class="kpi-val">'+(hbc.isCur&&hbc.remainDays>0?fmtC(hbc.perDay):'—')+'</div>';
+  if(hbc.isCur) h+='<div class="kpi-sub">CHF / Tag · '+hbc.remainDays+' Tage verbleibend</div>';
   h+='</div>';
-
-  // Buchung erfassen
-  h+='<button class="add-btn" id="home-add-btn"><span style="font-size:18px;font-weight:300">+</span> Buchung erfassen</button>';
-
-  // Diese Woche fällig
-  const weekStr=new Date(Date.now()+7*86400000).toISOString().slice(0,10);
-  const thisWeekInv=openInv.filter(i=>i.faelligkeit&&i.faelligkeit>=nowStr&&i.faelligkeit<=weekStr);
-  const overdueInv=openInv.filter(i=>i.faelligkeit&&i.faelligkeit<nowStr);
-  if(thisWeekInv.length||overdueInv.length){
-    const urgentInv=[...overdueInv,...thisWeekInv].sort((a,b)=>(a.faelligkeit||'')>(b.faelligkeit||'')?1:-1);
-    const urgentAmt=urgentInv.reduce((s,i)=>s+(i.betrag||0),0);
-    h+='<div class="sec-hdr"><span class="sec-ttl">Diese Woche fällig</span><span class="sec-val sec-warn">'+fmtC(urgentAmt)+'</span></div>';
-    h+='<div class="inv-card">';
-    urgentInv.slice(0,4).forEach(inv=>{
-      const fmtD=d=>d?d.split('-').reverse().join('.'):'';
-      const isOverdue=inv.faelligkeit<nowStr;
-      h+='<div class="inv-row">';
-      h+='<div><div class="inv-name">'+esc(inv.rechnungssteller||'—')+'</div>';
-      h+='<div class="inv-meta">'+(isOverdue?'Überfällig seit ':'Fällig ')+fmtD(inv.faelligkeit)+'</div>';
-      h+='<button class="inv-pay-btn" data-id="'+inv._id+'">Bezahlt markieren</button></div>';
-      h+='<div class="inv-right"><div class="inv-amt">'+fmtC(inv.betrag||0)+'</div></div>';
-      h+='</div>';
-    });
-    h+='</div>';
-  }
-
-  // Alle offenen Rechnungen
-  if(openInv.length>0){
-    h+='<div class="sec-hdr"><span class="sec-ttl">Offene Rechnungen</span><span class="sec-val">'+fmtC(openAmt)+'</span></div>';
-    h+='<div class="inv-card">';
-    openInv.sort((a,b)=>(a.faelligkeit||'9999')>(b.faelligkeit||'9999')?1:-1).slice(0,8).forEach(inv=>{
-      const overdue=inv.faelligkeit&&inv.faelligkeit<nowStr;
-      const fmtD=d=>d?d.split('-').reverse().join('.'):'';
-      h+='<div class="inv-row">';
-      h+='<div><div class="inv-name">'+esc(inv.rechnungssteller||'—')+'</div>';
-      h+='<div class="inv-meta">'+(inv.faelligkeit?'Fällig '+fmtD(inv.faelligkeit):'')+(inv.notiz?' · '+esc(inv.notiz):'')+'</div>';
-      h+='<button class="inv-pay-btn" data-id="'+inv._id+'">Bezahlt</button></div>';
-      h+='<div class="inv-right"><div class="inv-amt">'+fmtC(inv.betrag||0)+'</div>';
-      h+='<div class="inv-status'+(overdue?' warn':'')+'">'+( overdue?'Überfällig':esc(inv.status||'') )+'</div></div>';
-      h+='</div>';
-    });
-    if(openInv.length>8) h+='<div style="padding:10px 16px;font-size:11px;color:var(--muted)">+'+(openInv.length-8)+' weitere</div>';
-    h+='</div>';
-  } else {
-    h+='<div style="padding:20px 16px;font-size:13px;color:var(--muted)">Keine offenen Rechnungen.</div>';
-  }
+  // KPI 3: Heute ausgegeben
+  h+='<div class="kpi-card"><div class="kpi-label">Heute ausgegeben</div><div class="kpi-val">'+(todayAmt>0?fmtC(todayAmt):'—')+'</div>';
+  if(todayLast) h+='<div class="kpi-sub">'+esc(todayLast.desc||todayLast.cat||'')+'</div>';
+  h+='</div>';
+  // Budget-Card (exactly like screenshot)
+  h+=budgetCard(hy,hm,hbc);
+  // Add Card (full width, dark, +)
+  h+='<div class="hb-add-card" id="btn-add-card"><span class="hb-add-ico">+</span></div>';
   return h;
 }
 
-// ── Tab: Analyse ─────────────────────────────────────────
-function renderAnalyse(){
-  const{y:hy,m:hm}=hbCurPeriod();
-  const entries=hbEntries(hy,hm).filter(e=>e.type==='out');
-  const cats=hbCats();
-  const catMap=Object.fromEntries(cats.map(c=>[c.id,c.label]));
-
-  // HHB Ausgaben nach Kategorie
-  const hbByCat={};
-  entries.forEach(e=>{
-    const k=e.cat||'_other';
-    if(!hbByCat[k])hbByCat[k]=0;
-    hbByCat[k]+=e.amount||0;
-  });
-  const hbTotal=Object.values(hbByCat).reduce((s,v)=>s+v,0);
-
-  // Bezahlte Rechnungen mit hbKategorie (aktueller Monat)
-  const curM=new Date().getMonth(),curY=new Date().getFullYear();
-  const paidInv=getInvoices().filter(i=>i.status==='bezahlt'&&i.hbKategorie&&(i.budgetMonat??0)===curM&&(i.budgetJahr??curY)===curY);
-  const invByCat={};
-  paidInv.forEach(i=>{
-    if(!invByCat[i.hbKategorie])invByCat[i.hbKategorie]=0;
-    invByCat[i.hbKategorie]+=i.betrag||0;
-  });
-  const invTotal=paidInv.reduce((s,i)=>s+(i.betrag||0),0);
-
-  // Zusammenführen
-  const combined={};
-  [hbByCat,invByCat].forEach(src=>{
-    Object.entries(src).forEach(([k,v])=>{
-      if(!combined[k])combined[k]=0;
-      combined[k]+=v;
-    });
-  });
-  const total=Object.values(combined).reduce((s,v)=>s+v,0);
-  const sorted=Object.entries(combined).sort((a,b)=>b[1]-a[1]);
-
-  const hbc=hbCalc(hy,hm);
-  let h='';
-
-  // Total
-  h+='<div class="analyse-total">';
-  h+='<div class="analyse-total-val">'+fmtC(total)+'</div>';
-  h+='<div class="analyse-total-lbl">Ausgaben '+hbc.label+'</div>';
-  h+='</div>';
-
-  // Quellen
-  h+='<div class="sec-hdr"><span class="sec-ttl">Quellen</span></div>';
-  h+='<div class="source-row"><span class="source-lbl">Haushaltsbuch</span><span class="source-val">'+fmtC(hbTotal)+'</span></div>';
-  h+='<div class="source-row"><span class="source-lbl">Rechnungen (bezahlt)</span><span class="source-val">'+fmtC(invTotal)+'</span></div>';
-
-  // Kategorien
-  if(sorted.length>0){
-    h+='<div class="sec-hdr"><span class="sec-ttl">Kategorien</span></div>';
-    sorted.forEach(([k,v])=>{
-      const lbl=catMap[k]||(k==='_other'?'Sonstiges':k);
-      const pct=total>0?v/total*100:0;
-      h+='<div class="cat-row">';
-      h+='<div class="cat-row-head"><span class="cat-row-name">'+esc(lbl)+'</span><span class="cat-row-amt">'+fmtC(v)+'</span></div>';
-      h+='<div class="cat-bar-wrap"><div class="cat-bar-fill" style="width:'+pct.toFixed(1)+'%"></div></div>';
-      h+='<div class="cat-row-pct">'+pct.toFixed(0)+'%</div>';
-      h+='</div>';
-    });
-  } else {
-    h+='<div style="padding:20px 16px;font-size:13px;color:var(--muted)">Noch keine Buchungen diese Periode.</div>';
-  }
-  return h;
-}
-
-// ── Tab: Budget ───────────────────────────────────────────
-function renderBudget(){
-  const{y:cy,m:cm}=hbCurPeriod(),nx=hbNext(cy,cm);
-  let h='<div style="height:12px"></div>';
-  h+=budgetMonthCard(cy,cm,hbCalc(cy,cm),true);
-  h+=budgetMonthCard(nx.y,nx.m,hbCalc(nx.y,nx.m),false);
-  return h;
-}
-function budgetMonthCard(y,m,c,isCur){
-  let hero,hl,foot;
+function budgetCard(y,m,c){
+  const dStr=d=>String(d.getDate()).padStart(2,'0')+'. '+MON_S[d.getMonth()];
+  let hero='—',hl='',bar='',foot='';
   if(c.isCur&&c.budget>0){
-    hero=fmtC(c.perDay);hl='CHF / Tag · '+c.remainDays+' Tage verbleibend';
-    foot=['Ausgaben: '+fmtC(c.ausgaben),'Budget: '+fmtC(c.budget)];
+    hero=fmtC(c.perDay);hl='pro Tag · '+c.remainDays+' Tage verbleibend';
   } else if(c.isPast&&c.budget>0){
     hero=fmtC(c.avgDay);hl='Ø CHF / Tag';
-    foot=['Saldo: '+fmtC(c.saldo),'Ausgaben: '+fmtC(c.ausgaben)];
   } else if(c.budget>0){
-    hero=fmtC(c.budget);hl='Geplantes Budget';
-    foot=[c.totalDays+' Tage','—'];
-  } else {
-    hero='—';hl='Kein Budget';
-    foot=['—','—'];
+    hero=fmtC(c.budget);hl='Budget';
   }
-  const badge=c.isCur?'Laufend':c.isFuture?'Geplant':'Abgeschlossen';
-  let bar='';
   if(c.budget>0&&c.totalDays>0){
     const sp=Math.min(100,c.pct).toFixed(1);
-    if(isCur){
+    if(c.isCur){
       const tp=Math.min(100,c.dayUsed/c.totalDays*100).toFixed(1);
-      bar='<div class="bmc-bar-wrap"><div class="bmc-bar-fill" style="width:'+sp+'%"></div><div class="bmc-bar-tick" style="left:'+tp+'%"></div></div>';
-      bar+='<div class="bmc-bar-info"><span>'+fmtC(c.ausgaben)+' ausgegeben</span><span>Tag '+c.dayUsed+' / '+c.totalDays+'</span></div>';
+      bar='<div class="hb-bar-wrap"><div class="hb-bar-fill" style="width:'+sp+'%"></div><div class="hb-bar-tick" style="left:'+tp+'%"></div></div>';
+      bar+='<div class="hb-bar-info"><span>'+fmtC(c.ausgaben)+' ausgegeben</span><span>Tag '+c.dayUsed+' / '+c.totalDays+'</span></div>';
     } else {
-      bar='<div class="bmc-bar-wrap"><div class="bmc-bar-fill" style="width:'+sp+'%"></div></div>';
+      bar='<div class="hb-bar-wrap"><div class="hb-bar-fill" style="width:'+sp+'%"></div></div>';
     }
   }
-  return '<div class="budget-month-card'+(isCur?' active':'')+'">'+
-    '<div class="bmc-head"><span class="bmc-period">'+c.label+' '+y+'</span><span class="bmc-badge">'+badge+'</span></div>'+
-    '<div class="bmc-hero">'+hero+'</div>'+
-    '<div class="bmc-hero-lbl">'+hl+'</div>'+
-    (bar?bar+'<div style="height:8px"></div>':'')+
-    '<div class="bmc-foot"><span>'+foot[0]+'</span><span>'+foot[1]+'</span></div>'+
+  const badge=c.isCur?'Laufend':c.isFuture?'Geplant':'Abgeschlossen';
+  return '<div class="hb-card current">'+
+    '<div class="hb-card-head"><span class="hb-card-period">'+dStr(c.start)+' – '+dStr(c.end)+'</span><span class="hb-card-badge">'+badge+'</span></div>'+
+    '<div class="hb-hero">'+hero+'</div>'+
+    '<div class="hb-hero-label">'+hl+'</div>'+
+    bar+
     '</div>';
 }
 
-function esc(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
-
-// ── Tab: Rechnungen ─────────────────────────────────────
-function renderRechnungen(){
-  const invs=getInvoices();
-  const nowStr=new Date().toISOString().slice(0,10);
-  const weekStr=new Date(Date.now()+7*86400000).toISOString().slice(0,10);
-  const open=invs.filter(i=>i.status!=='bezahlt'&&!i.wiederkehrend);
-  const overdue=open.filter(i=>i.faelligkeit&&i.faelligkeit<nowStr);
-  const thisWeek=open.filter(i=>i.faelligkeit&&i.faelligkeit>=nowStr&&i.faelligkeit<=weekStr);
-  const later=open.filter(i=>!i.faelligkeit||i.faelligkeit>weekStr);
-  const paid=invs.filter(i=>i.status==='bezahlt');
-  const openAmt=open.reduce((s,i)=>s+(i.betrag||0),0);
-
-  let h='';
-  // Status bar
-  h+='<div class="inv-status-bar">';
-  h+='<div class="inv-stat warn"><div class="inv-stat-val">'+overdue.length+'</div><div class="inv-stat-lbl">Überfällig</div></div>';
-  h+='<div class="inv-stat"><div class="inv-stat-val">'+thisWeek.length+'</div><div class="inv-stat-lbl">Diese Woche</div></div>';
-  h+='<div class="inv-stat"><div class="inv-stat-val">'+fmtC(openAmt)+'</div><div class="inv-stat-lbl">Offen total</div></div>';
-  h+='</div>';
-
-  function invGroup(title, list, emptyMsg){
-    if(!list.length) return emptyMsg?'<div style="padding:10px 16px 0;font-size:11px;color:var(--muted)">'+emptyMsg+'</div>':'';
-    let g='<div class="sec-hdr"><span class="sec-ttl">'+title+'</span><span class="sec-val">'+list.length+'</span></div>';
-    g+='<div class="inv-card">';
-    list.sort((a,b)=>(a.faelligkeit||'9999')>(b.faelligkeit||'9999')?1:-1).forEach(inv=>{
-      const fmtD=d=>d?d.split('-').reverse().join('.'):'';
-      const isOverdue=inv.faelligkeit&&inv.faelligkeit<nowStr;
-      g+='<div class="inv-swipe" id="sw-'+inv._id+'">';
-      g+='<div class="inv-swipe-bg">Bezahlt ✓</div>';
-      g+='<div class="inv-swipe-inner">';
-      g+='<div><div class="inv-name">'+esc(inv.rechnungssteller||'—')+'</div>';
-      g+='<div class="inv-meta">'+(inv.faelligkeit?'Fällig '+fmtD(inv.faelligkeit):'Kein Datum')+(inv.notiz?' · '+esc(inv.notiz):'')+'</div></div>';
-      g+='<div class="inv-right"><div class="inv-amt">'+fmtC(inv.betrag||0)+'</div>';
-      g+='<div class="inv-status'+(isOverdue?' warn':'')+'">'+esc(inv.status||'')+'</div></div>';
-      g+='</div></div>';
-    });
-    g+='</div>';
-    return g;
-  }
-
-  h+=invGroup('Überfällig', overdue, '');
-  h+=invGroup('Diese Woche fällig', thisWeek, '');
-  h+=invGroup('Später', later, 'Keine weiteren offenen Rechnungen.');
-  if(paid.length) h+='<div class="sec-hdr"><span class="sec-ttl">Bezahlt</span><span class="sec-val">'+paid.length+'</span></div>';
-  return h;
-}
-
-function bindRechnungen(){
-  document.querySelectorAll('.inv-swipe').forEach(row=>{
-    const inner=row.querySelector('.inv-swipe-inner');
-    let startX=0, currentX=0, isDragging=false;
-    const THRESHOLD=80;
-    row.addEventListener('touchstart',e=>{
-      startX=e.touches[0].clientX; isDragging=true; inner.style.transition='none';
-    },{passive:true});
-    row.addEventListener('touchmove',e=>{
-      if(!isDragging) return;
-      currentX=e.touches[0].clientX-startX;
-      if(currentX>0) currentX=0;
-      inner.style.transform='translateX('+Math.max(-THRESHOLD*1.2,currentX)+'px)';
-      row.classList.toggle('swiping',currentX<-40);
-    },{passive:true});
-    row.addEventListener('touchend',async()=>{
-      isDragging=false;
-      inner.style.transition='transform .2s ease';
-      if(currentX<-THRESHOLD){
-        inner.style.transform='translateX(-100%)';
-        const id=row.id.replace('sw-','');
-        setTimeout(async()=>{ await markPaid(id); render(); },300);
-      } else {
-        inner.style.transform='';
-        row.classList.remove('swiping');
-      }
-      currentX=0;
-    });
-  });
-}
-
-// ── Improved openAddModal (+ Datum, Beschreibung) ────────
-function openAddModal(){
-  addForm={amount:'',type:'out',cat:'',desc:'',date:new Date().toISOString().slice(0,10)};
-  const cats=hbCats();
-  const el=document.createElement('div');
-  el.className='modal-overlay'; el.id='add-modal';
-  el.innerHTML=
-    '<div class="modal-header">'+
-      '<span class="modal-title">Neue Buchung</span>'+
-      '<button class="modal-close" id="m-close">&#xD7;</button>'+
-    '</div>'+
-    '<div class="modal-body">'+
-      '<div class="amount-wrap">'+
-        '<span class="amount-label">Betrag (CHF)</span>'+
-        '<input class="amount-input" id="m-amt" type="number" inputmode="decimal" placeholder="0.00">'+
-      '</div>'+
-      '<div class="type-toggle">'+
-        '<button class="type-btn active" id="m-out">Ausgabe</button>'+
-        '<button class="type-btn" id="m-in">Einnahme</button>'+
-      '</div>'+
-      '<span class="field-lbl">Kategorie</span>'+
-      '<div class="cat-grid">'+cats.map(c=>'<button class="cat-btn" data-cat="'+c.id+'">'+c.label+'</button>').join('')+'</div>'+
-      '<span class="field-lbl">Beschreibung</span>'+
-      '<input class="desc-input" id="m-desc" placeholder="Beschreibung">'+
-      '<span class="field-lbl">Datum</span>'+
-      '<input class="date-input" id="m-date" type="date" value="'+new Date().toISOString().slice(0,10)+'">'+
-    '<div class="modal-footer">'+
-      '<button class="modal-cancel" id="m-can">Abbrechen</button>'+
-      '<button class="modal-save" id="m-sav">Speichern</button>'+
-    '</div>'+
-    '</div>';
-  document.body.appendChild(el);
-  setTimeout(()=>document.getElementById('m-amt')?.focus(),80);
-  function closeModal(){ el.remove(); }
-  document.getElementById('m-close').onclick=closeModal;
-  document.getElementById('m-can').onclick=closeModal;
-  document.getElementById('m-out').addEventListener('click',()=>{
-    addForm.type='out';
-    document.getElementById('m-out').classList.add('active');
-    document.getElementById('m-in').classList.remove('active');
-  });
-  document.getElementById('m-in').addEventListener('click',()=>{
-    addForm.type='in';
-    document.getElementById('m-in').classList.add('active');
-    document.getElementById('m-out').classList.remove('active');
-  });
-  el.querySelectorAll('.cat-btn').forEach(b=>b.addEventListener('click',()=>{
-    el.querySelectorAll('.cat-btn').forEach(x=>x.classList.remove('active'));
-    b.classList.add('active');
-    addForm.cat=b.dataset.cat;
-  }));
-  document.getElementById('m-sav').addEventListener('click',async()=>{
-    addForm.amount=document.getElementById('m-amt').value;
-    addForm.desc=document.getElementById('m-desc').value;
-    addForm.date=document.getElementById('m-date').value||new Date().toISOString().slice(0,10);
-    if(!addForm.desc.trim()&&!addForm.cat){showToast('Beschreibung oder Kategorie erforderlich');return;}
-    closeModal();
-    await addEntry();
-  });
-}
-
-// ── Tab: Mehr (Rechnungen + Analyse + Budget) ───────────
-function renderMehr(){
-  let h='';
-  // ── Rechnungen Section ──
-  const invs=getInvoices();
-  const nowStr=new Date().toISOString().slice(0,10);
-  const weekStr=new Date(Date.now()+7*86400000).toISOString().slice(0,10);
-  const open=invs.filter(i=>i.status!=='bezahlt'&&!i.wiederkehrend);
-  const overdue=open.filter(i=>i.faelligkeit&&i.faelligkeit<nowStr);
-  const thisWeek=open.filter(i=>i.faelligkeit&&i.faelligkeit>=nowStr&&i.faelligkeit<=weekStr);
-  const later=open.filter(i=>!i.faelligkeit||i.faelligkeit>weekStr);
-  const paid=invs.filter(i=>i.status==='bezahlt');
-  const openAmt=open.reduce((s,i)=>s+(i.betrag||0),0);
-
-  h+='<div class="sec-hdr" style="padding-top:20px"><span class="sec-ttl" style="font-size:11px;font-weight:700;color:var(--text)">Rechnungen</span></div>';
-  h+='<div class="inv-status-bar">';
-  h+='<div class="inv-stat warn"><div class="inv-stat-val">'+overdue.length+'</div><div class="inv-stat-lbl">Überfällig</div></div>';
-  h+='<div class="inv-stat"><div class="inv-stat-val">'+thisWeek.length+'</div><div class="inv-stat-lbl">Diese Woche</div></div>';
-  h+='<div class="inv-stat"><div class="inv-stat-val">'+open.length+'</div><div class="inv-stat-lbl">Offen</div></div>';
-  h+='</div>';
-
-  function invGroup(title, list){
-    if(!list.length) return '';
-    let g='<div class="sec-hdr"><span class="sec-ttl">'+title+'</span><span class="sec-val">'+fmtC(list.reduce((s,i)=>s+(i.betrag||0),0))+'</span></div>';
-    g+='<div class="inv-card">';
-    list.sort((a,b)=>(a.faelligkeit||'9999')>(b.faelligkeit||'9999')?1:-1).forEach(inv=>{
-      const fmtD=d=>d?d.split('-').reverse().join('.'):'';
-      const isOverdue=inv.faelligkeit&&inv.faelligkeit<nowStr;
-      g+='<div class="inv-swipe" id="sw-'+inv._id+'">';
-      g+='<div class="inv-swipe-bg">Bezahlt ✓</div>';
-      g+='<div class="inv-swipe-inner">';
-      g+='<div><div class="inv-name">'+esc(inv.rechnungssteller||'—')+'</div>';
-      g+='<div class="inv-meta">'+(isOverdue?'Überfällig seit ':'Fällig ')+fmtD(inv.faelligkeit||'')+(inv.notiz?' · '+esc(inv.notiz):'')+'</div></div>';
-      g+='<div class="inv-right"><div class="inv-amt">'+fmtC(inv.betrag||0)+'</div>';
-      g+='<div class="inv-status'+(isOverdue?' warn':'')+'">'+esc(inv.status||'')+'</div></div>';
-      g+='</div></div>';
-    });
-    g+='</div>';
-    return g;
-  }
-
-  h+=invGroup('Überfällig', overdue);
-  h+=invGroup('Diese Woche', thisWeek);
-  h+=invGroup('Später', later);
-  if(paid.length) h+='<div class="sec-hdr"><span class="sec-ttl">Bezahlt</span><span class="sec-val">'+paid.length+'</span></div>';
-
-  // ── Analyse Section ──
-  const{y:hy,m:hm}=hbCurPeriod();
-  const entries=hbEntries(hy,hm).filter(e=>e.type==='out');
+// ── Tab: Ausgaben ─────────────────────────────────────────
+function renderAusgaben(){
+  const today=new Date(),curY=today.getFullYear(),curM=today.getMonth();
+  const{y:hy,m:hm}=hbCurPeriod(),hbc=hbCalc(hy,hm);
   const cats=hbCats();
   const catMap=Object.fromEntries(cats.map(c=>[c.id,c.label]));
-  const curM=new Date().getMonth(),curY=new Date().getFullYear();
-  const combined={};
-  entries.forEach(e=>{const k=e.cat||'_other';combined[k]=(combined[k]||0)+(e.amount||0);});
-  const paidInv=getInvoices().filter(i=>i.status==='bezahlt'&&i.hbKategorie&&(i.budgetMonat??0)===curM&&(i.budgetJahr??curY)===curY);
-  paidInv.forEach(i=>{combined[i.hbKategorie]=(combined[i.hbKategorie]||0)+(i.betrag||0);});
-  const total=Object.values(combined).reduce((s,v)=>s+v,0);
-  const sorted=Object.entries(combined).sort((a,b)=>b[1]-a[1]);
-  const hbc=hbCalc(hy,hm);
+  const COLORS=['#EE7F00','#1D9E75','#378ADD','#7F77DD','#D85A30','#888780'];
+  const SHADES=[['#F59B2B','#F9BC6A'],['#5DCAA5','#9FE1CB'],['#85B7EB','#B5D4F4'],['#AFA9EC','#CECBF6'],['#F0997B','#F5C4B3'],['#B4B2A9','#D3D1C7']];
 
-  h+='<div style="height:1px;background:var(--border);margin:20px 0 0"></div>';
-  h+='<div class="analyse-total" style="padding:14px 16px">';
-  h+='<div class="analyse-total-val">'+fmtC(total)+'</div>';
-  h+='<div class="analyse-total-lbl">Ausgaben '+hbc.label+'</div>';
+  // YTD saldo
+  let ytdAusg=0;
+  for(let m=0;m<=curM;m++) ytdAusg+=hbSum(curY,m,'out');
+
+  // This month entries
+  const entries=hbEntries(hy,hm).filter(e=>e.type==='out');
+  const todayISO=today.toISOString().slice(0,10);
+  const weekAgo=new Date(today-7*86400000).toISOString().slice(0,10);
+  const todayAmt=entries.filter(e=>e.date===todayISO).reduce((s,e)=>s+(e.amount||0),0);
+  const weekAmt=entries.filter(e=>e.date>=weekAgo).reduce((s,e)=>s+(e.amount||0),0);
+
+  // Categories
+  const byCat={};
+  entries.forEach(e=>{const k=e.cat||'_other';byCat[k]=(byCat[k]||0)+(e.amount||0);});
+  const total=Object.values(byCat).reduce((s,v)=>s+v,0);
+  const groups=payload?.data?._hb?.config?.catGroups||[];
+
+  let h='';
+  // Saldo YTD
+  h+='<div class="kpi-card"><div class="kpi-label">Ausgaben YTD '+curY+'</div><div class="kpi-val">'+fmtC(ytdAusg)+'</div><div class="kpi-sub">Jan – '+MON_S[curM]+' · '+(curM+1)+' Monate</div></div>';
+
+  // Quick stats
+  h+='<div class="stat-grid">';
+  h+='<div class="stat-cell"><div class="stat-val">'+(todayAmt?fmt(todayAmt):'—')+'</div><div class="stat-lbl">Heute</div></div>';
+  h+='<div class="stat-cell"><div class="stat-val">'+fmt(weekAmt)+'</div><div class="stat-lbl">Diese Woche</div></div>';
+  h+='<div class="stat-cell"><div class="stat-val">'+fmt(hbc.ausgaben)+'</div><div class="stat-lbl">Periode</div></div>';
+  h+='<div class="stat-cell"><div class="stat-val">'+Math.round(hbc.pct)+'%</div><div class="stat-lbl">Budget</div></div>';
   h+='</div>';
-  if(sorted.length){
-    sorted.forEach(([k,v])=>{
-      const lbl=catMap[k]||(k==='_other'?'Sonstiges':k);
-      const pct=total>0?v/total*100:0;
-      h+='<div class="cat-row">';
-      h+='<div class="cat-row-head"><span class="cat-row-name">'+esc(lbl)+'</span><span class="cat-row-amt">'+fmtC(v)+'</span></div>';
-      h+='<div class="cat-bar-wrap"><div class="cat-bar-fill" style="width:'+pct.toFixed(1)+'%"></div></div>';
-      h+='<div class="cat-row-pct">'+pct.toFixed(0)+'%</div>';
-      h+='</div>';
+
+  // Donut chart
+  if(total>0){
+    const sorted=Object.entries(byCat).sort((a,b)=>b[1]-a[1]);
+    const circ=2*Math.PI*44;
+    let offset=0;
+    let arcs='';
+    sorted.forEach(([k,v],i)=>{
+      const pct=v/total;
+      const dash=circ*pct;
+      const color=COLORS[i%COLORS.length];
+      arcs+=`<circle cx="60" cy="60" r="44" fill="none" stroke="${color}" stroke-width="14" stroke-dasharray="${dash.toFixed(1)} ${(circ-dash).toFixed(1)}" stroke-dashoffset="${(-offset).toFixed(1)}" transform="rotate(-90 60 60)"/>`;
+      offset+=dash;
     });
+    h+='<div style="display:flex;justify-content:center;padding:6px 0 2px"><svg width="110" height="110" viewBox="0 0 120 120">';
+    h+='<circle cx="60" cy="60" r="44" fill="none" stroke="rgba(255,255,255,.07)" stroke-width="14"/>';
+    h+=arcs;
+    h+='<text x="60" y="55" text-anchor="middle" fill="#FAFAF7" font-size="12" font-weight="700" font-family="-apple-system,sans-serif">CHF</text>';
+    h+='<text x="60" y="70" text-anchor="middle" fill="rgba(255,255,255,.6)" font-size="11" font-family="-apple-system,sans-serif">'+fmt(total)+'</text>';
+    h+='</svg></div>';
   }
 
-  // ── Budget Section ──
-  const{y:cy,m:cm}=hbCurPeriod(),nx=hbNext(cy,cm);
-  h+='<div style="height:1px;background:var(--border);margin:20px 0 12px"></div>';
-  h+=budgetMonthCard(cy,cm,hbCalc(cy,cm),true);
-  h+=budgetMonthCard(nx.y,nx.m,hbCalc(nx.y,nx.m),false);
-  h+='<div style="height:20px"></div>';
+  // Category cards
+  h+='<div style="margin-top:4px">';
+  if(groups.length){
+    groups.forEach((g,gi)=>{
+      const gc=cats.filter(c=>c.groupId===g.id);
+      const gtotal=gc.reduce((s,c)=>s+(byCat[c.id]||0),0);
+      if(!gtotal)return;
+      const color=COLORS[gi%COLORS.length];
+      const shades=SHADES[gi%SHADES.length];
+      const maxSub=Math.max(...gc.map(c=>byCat[c.id]||0),1);
+      h+='<div class="mc-card"><div class="mc-head" style="background:'+color+'"><span class="mc-name">'+esc(g.label)+'</span><span class="mc-amt">'+fmtC(gtotal)+'</span></div><div class="mc-body">';
+      gc.filter(c=>byCat[c.id]>0).sort((a,b)=>(byCat[b.id]||0)-(byCat[a.id]||0)).forEach((c,ci)=>{
+        const v=byCat[c.id]||0,pct=v/maxSub*100;
+        h+='<div class="mc-row"><span class="mc-lbl">'+esc(c.label)+'</span><div class="mc-bw"><div class="mc-bf" style="width:'+pct.toFixed(0)+'%;background:'+shades[ci%shades.length]+'"></div></div><span class="mc-val">'+fmt(v)+'</span></div>';
+      });
+      h+='</div></div>';
+    });
+  } else {
+    const sorted=Object.entries(byCat).sort((a,b)=>b[1]-a[1]);
+    sorted.forEach(([k,v],i)=>{
+      const lbl=catMap[k]||(k==='_other'?'Sonstiges':k);
+      const color=COLORS[i%COLORS.length];
+      h+='<div class="mc-card"><div class="mc-head" style="background:'+color+'"><span class="mc-name">'+esc(lbl)+'</span><span class="mc-amt">'+fmtC(v)+'</span></div></div>';
+    });
+  }
+  h+='</div>';
+  h+='<div style="height:16px"></div>';
   return h;
 }
+
+// ── Tab: Rechnungen ───────────────────────────────────────
+function renderRechnungen(){
+  const today=new Date(),curM=today.getMonth(),curY=today.getFullYear(),nowStr=today.toISOString().slice(0,10);
+  const nx=hbNext(curY,curM);
+  const invs=getInvoices();
+  const fmtD=d=>d?d.split('-').reverse().join('.'):'';
+
+  const openCur=invs.filter(i=>i.status!=='bezahlt'&&(i.budgetMonat??0)===curM&&(i.budgetJahr??curY)===curY);
+  const paidCur=invs.filter(i=>i.status==='bezahlt'&&(i.budgetMonat??0)===curM&&(i.budgetJahr??curY)===curY);
+  const openNxt=invs.filter(i=>i.status!=='bezahlt'&&(i.budgetMonat??0)===nx.m&&(i.budgetJahr??nx.y)===nx.y);
+
+  const openCurAmt=openCur.reduce((s,i)=>s+(i.betrag||0),0);
+  const paidCurAmt=paidCur.reduce((s,i)=>s+(i.betrag||0),0);
+  const openNxtAmt=openNxt.reduce((s,i)=>s+(i.betrag||0),0);
+
+  function invList(list){
+    if(!list.length) return '<div class="inv-empty">Keine</div>';
+    return list.sort((a,b)=>(a.faelligkeit||'9999')>(b.faelligkeit||'9999')?1:-1).map(inv=>{
+      const overdue=inv.faelligkeit&&inv.faelligkeit<nowStr&&inv.status!=='bezahlt';
+      return '<div class="inv-row">'+
+        '<div><div class="inv-name">'+esc(inv.rechnungssteller||'—')+'</div>'+
+        '<div class="inv-meta">'+(inv.bezahltAm?'Bezahlt '+fmtD(inv.bezahltAm):inv.faelligkeit?'Fällig '+fmtD(inv.faelligkeit):'')+
+        (inv.notiz?' · '+esc(inv.notiz):'')+'</div></div>'+
+        '<div style="text-align:right"><div class="inv-amt">'+fmtC(inv.betrag||0)+'</div>'+
+        '<div class="inv-status'+(overdue?' warn':'')+'">'+esc(inv.status||'')+'</div></div>'+
+        '</div>';
+    }).join('');
+  }
+
+  // Stat bar
+  let h='<div class="stat-grid">';
+  h+='<div class="stat-cell'+(openCur.length?' warn':'')+'"><div class="stat-val">'+openCur.length+'</div><div class="stat-lbl">Offen '+MON_S[curM]+'</div></div>';
+  h+='<div class="stat-cell"><div class="stat-val">'+fmtC(paidCurAmt)+'</div><div class="stat-lbl">Bezahlt '+MON_S[curM]+'</div></div>';
+  h+='<div class="stat-cell"><div class="stat-val">'+openNxt.length+'</div><div class="stat-lbl">Offen '+MON_S[nx.m]+'</div></div>';
+  h+='<div class="stat-cell"><div class="stat-val">'+fmtC(openNxtAmt)+'</div><div class="stat-lbl">Fällig '+MON_S[nx.m]+'</div></div>';
+  h+='</div>';
+
+  h+='<div class="inv-sec-hdr"><span class="inv-sec-t">Offen · '+MON_S[curM]+'</span><span class="inv-sec-v">'+fmtC(openCurAmt)+'</span></div>';
+  h+='<div class="inv-group">'+invList(openCur)+'</div>';
+  h+='<div class="inv-sec-hdr"><span class="inv-sec-t">Bezahlt · '+MON_S[curM]+'</span><span class="inv-sec-v">'+fmtC(paidCurAmt)+'</span></div>';
+  h+='<div class="inv-group">'+invList(paidCur)+'</div>';
+  h+='<div class="inv-sec-hdr"><span class="inv-sec-t">Offen · '+MON_S[nx.m]+'</span><span class="inv-sec-v">'+fmtC(openNxtAmt)+'</span></div>';
+  h+='<div class="inv-group">'+invList(openNxt)+'</div>';
+  h+='<div style="height:16px"></div>';
+  return h;
+}
+
+function getInvoices(){
+  return Object.entries(payload?.invoices||{}).map(([k,v])=>({...v,_id:k}));
+}
+function esc(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
 
 // ── Boot ──────────────────────────────────────────────────
 async function boot(){
